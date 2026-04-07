@@ -30,6 +30,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     favorite: false,
     hidden: false,
     genre: null,
+    status: 'unplayed',
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
     ...overrides,

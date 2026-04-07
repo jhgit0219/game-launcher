@@ -1,21 +1,24 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useLibrary } from './context/LibraryContext';
 import { useGames } from './hooks/useGames';
-import { useDebounce } from './hooks/useDebounce';
+import { useSettings } from './hooks/useSettings';
 import { ipc } from './lib/ipc';
 import { Sidebar } from './components/Sidebar';
 import { GameGrid } from './components/GameGrid';
 import { GameDetail } from './components/GameDetail';
 import { AppShortcuts } from './components/AppShortcuts';
+import { DownloadToast } from './components/DownloadToast';
 import { Settings } from './components/Settings';
 import { SortDropdown } from './components/SortDropdown';
-import type { Game, GamesListFilter } from './types/game';
+import { ThumbnailSizeSelector } from './components/ThumbnailSizeSelector';
+import type { Game, GameStatus, GamesListFilter } from './types/game';
 import styles from './App.module.css';
 
 export function App() {
   const {
     view,
     searchQuery,
+    setSearchQuery,
     platforms,
     favoritesOnly,
     recentlyPlayed,
@@ -25,20 +28,69 @@ export function App() {
     setSelectedGame,
   } = useLibrary();
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  const handleSearchChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+    },
+    [setSearchQuery],
+  );
 
   const filter = useMemo<GamesListFilter>(
     () => ({
-      search: debouncedSearch || undefined,
       platforms: platforms.length > 0 ? platforms : undefined,
       favoritesOnly: favoritesOnly || undefined,
       recentlyPlayed: recentlyPlayed || undefined,
       sortBy,
     }),
-    [debouncedSearch, platforms, favoritesOnly, recentlyPlayed, sortBy],
+    [platforms, favoritesOnly, recentlyPlayed, sortBy],
   );
 
-  const { games, loading, refetch } = useGames(filter);
+  const { games: allGames, loading, refetch } = useGames(filter);
+
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Client-side search and status filtering for instant reactive filtering
+  const games = useMemo(() => {
+    let filtered = allGames;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((g) => g.title.toLowerCase().includes(q));
+    }
+    if (statusFilter) {
+      filtered = filtered.filter((g) => g.status === statusFilter);
+    }
+    return filtered;
+  }, [allGames, searchQuery, statusFilter]);
+
+  const { settings, updateSettings } = useSettings();
+  const thumbnailSize = settings.thumbnailSize ?? 'medium';
+  const sidebarAutoHide = settings.sidebarAutoHide ?? false;
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Subscribe to fullscreen state changes from the main process
+  useEffect(() => {
+    const unsub = ipc.window.onFullscreenChanged((fs) => {
+      setIsFullscreen(fs);
+    });
+    return unsub;
+  }, []);
+
+  // Handle F11 and ESC for fullscreen toggling
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        ipc.window.toggleFullscreen();
+      } else if (e.key === 'Escape' && isFullscreen) {
+        e.preventDefault();
+        ipc.window.toggleFullscreen();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   // Refetch games when a scan completes
   useEffect(() => {
@@ -56,6 +108,11 @@ export function App() {
     return unsub;
   }, [refetch]);
 
+  const handleGameStatusChange = useCallback((gameId: string, status: string) => {
+    ipc.games.setStatus(gameId, status as GameStatus);
+    refetch();
+  }, [refetch]);
+
   const handleSelectGame = useCallback(
     (game: Game) => {
       setSelectedGame(game);
@@ -68,10 +125,17 @@ export function App() {
   }, [setSelectedGame]);
 
   return (
-    <div className={styles.shell}>
-      <Sidebar games={games} onSelectGame={handleSelectGame} />
+    <div className={styles.shell} data-fullscreen={isFullscreen || undefined}>
+      <Sidebar
+        games={games}
+        onSelectGame={handleSelectGame}
+        autoHide={sidebarAutoHide}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        onGameStatusChange={handleGameStatusChange}
+      />
 
-      <main className={styles.content}>
+      <main className={`${styles.content} ${sidebarAutoHide ? styles.contentAutoHide : ''}`}>
         {view === 'library' && (
           <>
             <header className={styles.header}>
@@ -83,22 +147,50 @@ export function App() {
                   </span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+              <div className={styles.searchBar}>
+                <svg
+                  className={styles.searchIcon}
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="10.5" y1="10.5" x2="15" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <input
+                  type="text"
+                  className={styles.searchInput}
+                  placeholder="Search games..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  aria-label="Search games"
+                />
+                {searchQuery && (
+                  <button
+                    className={styles.searchClear}
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    &#10005;
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.headerRight}>
                 <button
+                  className={styles.headerBtn}
                   onClick={refetch}
                   title="Refresh library"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--bg-active)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    padding: '4px 10px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                  }}
                 >
                   &#8635;
                 </button>
+                <ThumbnailSizeSelector
+                  value={thumbnailSize}
+                  onChange={(size) => updateSettings({ thumbnailSize: size })}
+                />
                 <SortDropdown value={sortBy} onChange={setSortBy} />
               </div>
             </header>
@@ -107,6 +199,7 @@ export function App() {
               games={games}
               loading={loading}
               onSelectGame={handleSelectGame}
+              thumbnailSize={thumbnailSize}
             />
 
             <AppShortcuts />
@@ -119,8 +212,10 @@ export function App() {
       </main>
 
       {selectedGame && (
-        <GameDetail game={selectedGame} onClose={handleCloseDetail} />
+        <GameDetail game={selectedGame} onClose={handleCloseDetail} onStatusChange={refetch} />
       )}
+
+      <DownloadToast />
     </div>
   );
 }

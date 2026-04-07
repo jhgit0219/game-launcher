@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { memo, useCallback, useEffect, useState, type MouseEvent } from 'react';
 import type { Game } from '../types/game';
 import { PLATFORM_LABELS } from '../../shared/constants';
 import { ipc } from '../lib/ipc';
@@ -18,7 +18,7 @@ function formatPlaytime(minutes: number): string {
   return `${hours}h ${remaining}m`;
 }
 
-export function GameCard({ game, onClick, onDoubleClick }: GameCardProps) {
+export const GameCard = memo(function GameCard({ game, onClick, onDoubleClick }: GameCardProps) {
   const [imgError, setImgError] = useState(false);
   const [coverPath, setCoverPath] = useState(game.coverArtPath);
 
@@ -64,6 +64,11 @@ export function GameCard({ game, onClick, onDoubleClick }: GameCardProps) {
       role="button"
       tabIndex={0}
       aria-label={`${game.title} - ${PLATFORM_LABELS[game.platform]}`}
+      draggable="true"
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/gameId', game.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') handleClick();
       }}
@@ -108,4 +113,4 @@ export function GameCard({ game, onClick, onDoubleClick }: GameCardProps) {
       </button>
     </div>
   );
-}
+});

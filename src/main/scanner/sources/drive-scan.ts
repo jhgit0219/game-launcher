@@ -3,7 +3,10 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import type { GameScanner, ScanResult } from '../types';
 
-const GAME_ROOT_DIRS = ['Games', 'Game', 'SteamLibrary'];
+const GAME_ROOT_DIRS = [
+  'Games', 'Game', 'SteamLibrary',
+  'Program Files', 'Program Files (x86)',
+];
 
 // Files/patterns that strongly indicate a directory is a game.
 const GAME_INDICATORS = [
@@ -144,12 +147,15 @@ export class DriveScanScanner implements GameScanner {
 
     // Must have at least one game signal
     if (!hasGameIndicator && !hasGameContent && !subDirHasIndicator) {
-      // Last resort: check if folder has an exe that matches the folder name
-      const folderLower = folderName.toLowerCase().split(/[\s_-]/)[0];
-      const matchingExe = filesLower.find(f =>
-        f.endsWith('.exe') && f.replace('.exe', '').includes(folderLower)
-      );
-      if (!matchingExe) return null;
+      // Fallback: accept if the folder has any non-system .exe file.
+      // The pre-filter will catch actual non-games later.
+      const hasAnyGameExe = filesLower.some(f => {
+        if (!f.endsWith('.exe')) return false;
+        // Skip obvious non-game executables
+        if (/^(unins|setup|install|dxsetup|vcredist|dotnet|ue4prereq|crashhandler|bootstrapper|prereq|redist)/i.test(f)) return false;
+        return true;
+      });
+      if (!hasAnyGameExe) return null;
     }
 
     // Find the best exe
@@ -181,7 +187,7 @@ export class DriveScanScanner implements GameScanner {
     }
 
     // Check subdirs (bin, Game, Binaries, etc.)
-    const exeSubdirs = ['bin', 'bin64', 'Binaries', 'Game', 'x64'];
+    const exeSubdirs = ['bin', 'bin64', 'Binaries', 'Game', 'x64', 'Win64', 'Bin/Win64', 'runtime', 'app'];
     for (const sub of exeSubdirs) {
       const subPath = join(gameDir, sub);
       try {
@@ -229,8 +235,9 @@ export class DriveScanScanner implements GameScanner {
       .replace(/\s*v[\d.]+\w*$/i, '')
       .replace(/\s*\([^)]*\)$/g, '')
       .replace(/\s*-\s*Copy$/i, '')
-      .replace(/[-_]+/g, ' ')        // Replace dashes/underscores with spaces
-      .replace(/\s+/g, ' ')          // Collapse multiple spaces
+      .replace(/\s+(game|games|install|installed|client|launcher|files|data|folder|dir|app)\s*$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 

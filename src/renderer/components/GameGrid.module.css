@@ -1,6 +1,6 @@
 .container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 160px);
+  grid-template-columns: repeat(auto-fill, var(--grid-col-width, 160px));
   grid-auto-rows: min-content;
   gap: 16px;
   padding: 24px;
@@ -9,6 +9,7 @@
   flex: 1;
   min-height: 0;
   align-content: start;
+  justify-content: center;
 }
 
 .loading {

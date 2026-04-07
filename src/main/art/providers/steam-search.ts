@@ -19,11 +19,26 @@ export async function searchSteamForCover(title: string): Promise<string | null>
 
     if (!data.items || data.items.length === 0) return null;
 
-    const titleLower = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const match = data.items.find(item => {
-      const itemLower = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      return itemLower === titleLower || itemLower.includes(titleLower) || titleLower.includes(itemLower);
-    }) ?? data.items[0];
+    const titleNorm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Find the best match — prefer exact, then closest length match
+    let match = data.items[0];
+    let bestScore = 0;
+
+    for (const item of data.items) {
+      const itemNorm = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (itemNorm === titleNorm) {
+        match = item;
+        break;
+      }
+      if (itemNorm.includes(titleNorm) || titleNorm.includes(itemNorm)) {
+        const ratio = Math.min(itemNorm.length, titleNorm.length) / Math.max(itemNorm.length, titleNorm.length);
+        if (ratio > bestScore) {
+          bestScore = ratio;
+          match = item;
+        }
+      }
+    }
 
     if (!match) return null;
 

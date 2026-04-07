@@ -17,11 +17,20 @@ export function applySchema(db: Database): void {
       favorite         INTEGER NOT NULL DEFAULT 0,
       hidden           INTEGER NOT NULL DEFAULT 0,
       genre            TEXT,
+      status           TEXT    NOT NULL DEFAULT 'unplayed' CHECK (status IN ('unplayed','playing','completed','on-hold','dropped')),
       created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
       updated_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     )
   `);
 
+  // Add status column to existing databases (migration-safe)
+  try {
+    db.run(`ALTER TABLE games ADD COLUMN status TEXT NOT NULL DEFAULT 'unplayed'`);
+  } catch {
+    // Column already exists — ignore
+  }
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_games_status      ON games (status)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_games_platform    ON games (platform)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_games_favorite    ON games (favorite)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_games_last_played ON games (last_played)`);
@@ -63,6 +72,15 @@ export function applySchema(db: Database): void {
       errors        TEXT,
       started_at    TEXT    NOT NULL,
       completed_at  TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS title_resolution (
+      original_title  TEXT PRIMARY KEY,
+      resolved_title  TEXT NOT NULL,
+      source          TEXT,
+      resolved_at     TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     )
   `);
 

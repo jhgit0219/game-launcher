@@ -11,6 +11,7 @@ import type {
 const api: ElectronAPI = {
   scanStart: () => ipcRenderer.invoke('scan:start'),
   scanCancel: () => ipcRenderer.invoke('scan:cancel'),
+  titlesRefresh: () => ipcRenderer.invoke('titles:refresh'),
   gamesList: (filter: GamesListFilter) =>
     ipcRenderer.invoke('games:list', filter),
   gamesLaunch: (gameId: string) =>
@@ -19,6 +20,10 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('games:favorite', gameId),
   gamesHide: (gameId: string) =>
     ipcRenderer.invoke('games:hide', gameId),
+  gamesSetStatus: (gameId: string, status: string) =>
+    ipcRenderer.invoke('games:setStatus', gameId, status),
+  gamesUninstall: (gameId: string) =>
+    ipcRenderer.invoke('games:uninstall', gameId),
   shortcutsAdd: (data: Omit<AppShortcut, 'id' | 'createdAt'>) =>
     ipcRenderer.invoke('shortcuts:add', data),
   shortcutsRemove: (id: string) =>
@@ -29,8 +34,12 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('settings:update', patch),
   artFetch: (gameId: string) =>
     ipcRenderer.invoke('art:fetch', gameId),
+  artRefetchMissing: () => ipcRenderer.invoke('art:refetchMissing'),
+  artRefetchAll: () => ipcRenderer.invoke('art:refetchAll'),
+  artFailures: () => ipcRenderer.invoke('art:failures'),
   openInstallFolder: (gameId: string) =>
     ipcRenderer.invoke('games:openFolder', gameId),
+  appReset: () => ipcRenderer.invoke('app:reset'),
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
   selectExecutable: () => ipcRenderer.invoke('dialog:selectExecutable'),
 
@@ -67,6 +76,26 @@ const api: ElectronAPI = {
     ipcRenderer.on('art:updated', handler);
     return () => {
       ipcRenderer.removeListener('art:updated', handler);
+    };
+  },
+
+  onArtDownloadStatus: (callback: (data: { title: string; provider: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { title: string; provider: string }) =>
+      callback(data);
+    ipcRenderer.on('art:downloadStatus', handler);
+    return () => {
+      ipcRenderer.removeListener('art:downloadStatus', handler);
+    };
+  },
+
+  toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
+
+  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, isFullscreen: boolean) =>
+      callback(isFullscreen);
+    ipcRenderer.on('window:fullscreenChanged', handler);
+    return () => {
+      ipcRenderer.removeListener('window:fullscreenChanged', handler);
     };
   },
 };

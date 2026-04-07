@@ -27,7 +27,8 @@ function createWindow(): BrowserWindow {
     minWidth: 800,
     minHeight: 600,
     frame: true,
-    backgroundColor: '#0f0f0f',
+    autoHideMenuBar: true,
+    backgroundColor: '#000000',
     show: false,            // Show only after the renderer is ready.
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -77,6 +78,14 @@ app.whenReady().then(async () => {
 
   mainWindow = createWindow();
   registerIpcHandlers(mainWindow);
+
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow!.webContents.send('window:fullscreenChanged', true);
+  });
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow!.webContents.send('window:fullscreenChanged', false);
+  });
+
   createTray(mainWindow);
 
   // Trigger a scan on startup if the setting is enabled.

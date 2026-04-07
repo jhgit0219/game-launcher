@@ -1,0 +1,36 @@
+.group {
+  display: flex;
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: none;
+  border-right: 1px solid var(--bg-active);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.btn:last-child {
+  border-right: none;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btnActive {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.btnActive:hover {
+  background: var(--accent-hover);
+}

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import type { Game } from '../types/game';
 import { GameCard } from './GameCard';
 import { ipc } from '../lib/ipc';
@@ -8,9 +8,16 @@ export interface GameGridProps {
   games: Game[];
   loading: boolean;
   onSelectGame: (game: Game) => void;
+  thumbnailSize?: 'small' | 'medium' | 'large';
 }
 
-export function GameGrid({ games, loading, onSelectGame }: GameGridProps) {
+const THUMB_SIZE_MAP: Record<string, string> = {
+  small: '120px',
+  medium: '160px',
+  large: '220px',
+};
+
+export function GameGrid({ games, loading, onSelectGame, thumbnailSize = 'medium' }: GameGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDoubleClick = useCallback((game: Game) => {
@@ -42,6 +49,7 @@ export function GameGrid({ games, loading, onSelectGame }: GameGridProps) {
       className={styles.container}
       role="grid"
       aria-label={`Game library, ${games.length} games`}
+      style={{ '--grid-col-width': THUMB_SIZE_MAP[thumbnailSize] } as React.CSSProperties}
     >
       {games.map((game) => (
         <GameCard

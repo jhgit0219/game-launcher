@@ -1,12 +1,18 @@
-import { existsSync, realpathSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
+import { existsSync } from 'node:fs';
+import { isAbsolute, dirname } from 'node:path';
 import { spawn } from 'node:child_process';
 import type { Game } from '../../db/games';
 import type { LaunchResult, ActiveSession } from '../index';
 
+/** Check if a path is a UNC network path (\\server\share\...) */
+function isUncPath(p: string): boolean {
+  const normalized = p.replace(/\//g, '\\');
+  return normalized.startsWith('\\\\');
+}
+
 /**
  * Launch a game directly via its executable path.
- * Uses child_process.spawn (never shell: true) for security.
+ * Supports both local paths and UNC network paths.
  */
 export async function launchDirect(
   game: Game,
@@ -22,14 +28,24 @@ export async function launchDirect(
     };
   }
 
-  if (!isAbsolute(exePath) || exePath.includes('..')) {
+  // Normalize to OS path separators for validation
+  const osPath = exePath.replace(/\//g, '\\');
+
+  if (!isAbsolute(osPath) && !isUncPath(osPath)) {
     return {
       ok: false,
-      error: 'Executable path must be absolute and must not contain traversal components.',
+      error: 'Executable path must be absolute.',
     };
   }
 
-  if (!existsSync(exePath)) {
+  if (osPath.includes('..')) {
+    return {
+      ok: false,
+      error: 'Executable path must not contain traversal components.',
+    };
+  }
+
+  if (!existsSync(osPath)) {
     return {
       ok: false,
       missingPath: true,
@@ -38,38 +54,45 @@ export async function launchDirect(
     };
   }
 
-  // Resolve symlinks to ensure the real target path is used.
-  let resolvedPath: string;
-  try {
-    resolvedPath = realpathSync(exePath);
-  } catch {
-    return {
-      ok: false,
-      error: 'Could not resolve executable path.',
-    };
-  }
+  const workingDir = game.installPath
+    ? game.installPath.replace(/\//g, '\\')
+    : dirname(osPath);
 
-  const workingDir = game.installPath ?? undefined;
   const startedAt = Date.now();
 
-  const child = spawn(resolvedPath, [], {
-    detached: true,
-    stdio: 'ignore',
-    cwd: workingDir,
-    // shell: false is the default and must NOT be changed.
-  });
+  try {
+    // Use cmd /c start for all custom/registry games. This handles:
+    // - UAC elevation prompts (anti-cheat games like Genshin Impact)
+    // - UNC network paths
+    // - Protected directories
+    // - Exe files that need to run from their own directory
+    const child = spawn('cmd', ['/c', 'start', '/d', workingDir, '', osPath], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
 
-  child.unref();
+    child.unref();
 
-  const session: ActiveSession = {
-    gameId: game.id,
-    pid: child.pid ?? null,
-    startedAt,
-  };
+    const session: ActiveSession = {
+      gameId: game.id,
+      pid: child.pid ?? null,
+      startedAt,
+    };
 
-  child.on('close', () => {
-    onExit(session);
-  });
+    child.on('error', (err) => {
+      console.error(`[launcher] Failed to start ${game.title}:`, err.message);
+    });
 
-  return { ok: true, session };
+    child.on('close', () => {
+      onExit(session);
+    });
+
+    return { ok: true, session };
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Failed to launch: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }

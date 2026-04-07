@@ -7,6 +7,8 @@ export type Platform =
   | 'registry'
   | 'custom';
 
+export type GameStatus = 'unplayed' | 'playing' | 'completed' | 'on-hold' | 'dropped';
+
 export interface Game {
   id: string;
   title: string;
@@ -21,6 +23,7 @@ export interface Game {
   favorite: boolean;
   hidden: boolean;
   genre: string | null;
+  status: GameStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +45,8 @@ export interface AppSettings {
   launchOnStartup: boolean;
   steamGridDbApiKey: string;
   artQuality: 'standard' | 'high';
+  sidebarAutoHide: boolean;
+  thumbnailSize: 'small' | 'medium' | 'large';
 }
 
 export interface ScanProgress {
@@ -78,23 +83,33 @@ export type SortOption =
 export interface ElectronAPI {
   scanStart: () => Promise<void>;
   scanCancel: () => Promise<void>;
+  titlesRefresh: () => Promise<void>;
   gamesList: (filter: GamesListFilter) => Promise<Game[]>;
   gamesLaunch: (gameId: string) => Promise<void>;
   gamesFavorite: (gameId: string) => Promise<void>;
   gamesHide: (gameId: string) => Promise<void>;
+  gamesSetStatus: (gameId: string, status: GameStatus) => Promise<void>;
+  gamesUninstall: (gameId: string) => Promise<{ ok: boolean; error?: string }>;
   shortcutsAdd: (data: Omit<AppShortcut, 'id' | 'createdAt'>) => Promise<AppShortcut>;
   shortcutsRemove: (id: string) => Promise<void>;
   shortcutsList: () => Promise<AppShortcut[]>;
   settingsGet: () => Promise<AppSettings>;
   settingsUpdate: (patch: Partial<AppSettings>) => Promise<void>;
   artFetch: (gameId: string) => Promise<string | null>;
+  artRefetchMissing: () => Promise<void>;
+  artRefetchAll: () => Promise<void>;
+  artFailures: () => Promise<Array<{ gameId: string; title: string; reason: string; timestamp: string }>>;
   openInstallFolder: (gameId: string) => Promise<void>;
+  appReset: () => Promise<void>;
   selectDirectory: () => Promise<string | null>;
   selectExecutable: () => Promise<string | null>;
   onScanProgress: (callback: (data: ScanProgress) => void) => () => void;
   onScanComplete: (callback: (data: ScanSummary) => void) => () => void;
   onScanError: (callback: (err: string) => void) => () => void;
   onArtUpdated: (callback: (data: { gameId: string; coverPath: string }) => void) => () => void;
+  toggleFullscreen: () => Promise<void>;
+  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => () => void;
+  onArtDownloadStatus: (callback: (data: { title: string; provider: string }) => void) => () => void;
 }
 
 declare global {

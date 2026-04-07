@@ -30,7 +30,7 @@ export async function fetchSteamGridDbCover(
 
   const headers = { Authorization: `Bearer ${apiKey}` };
 
-  // Step 1: Search for the game by name.
+  // Step 1: Search for the game by name, finding the best title match.
   let gameId: number | null = null;
   try {
     const searchUrl = `${API_BASE}/search/autocomplete/${encodeURIComponent(title)}`;
@@ -40,7 +40,31 @@ export async function fetchSteamGridDbCover(
     const searchJson = (await searchRes.json()) as SteamGridResponse<SteamGridSearchResult>;
     if (!searchJson.success || !searchJson.data.length) return null;
 
-    gameId = searchJson.data[0]!.id;
+    // Find the best matching title rather than blindly taking the first result.
+    // This prevents "Bejeweled 2" from getting "Bejeweled" art.
+    const normQuery = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let bestMatch = searchJson.data[0]!;
+    let bestScore = 0;
+
+    for (const item of searchJson.data) {
+      const normName = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normName === normQuery) {
+        bestMatch = item;
+        bestScore = 100;
+        break;
+      }
+      // Prefer items that contain the full query and are similar length
+      if (normName.includes(normQuery) || normQuery.includes(normName)) {
+        const lengthRatio = Math.min(normName.length, normQuery.length) / Math.max(normName.length, normQuery.length);
+        const score = lengthRatio * 50;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = item;
+        }
+      }
+    }
+
+    gameId = bestMatch.id;
   } catch {
     return null;
   }

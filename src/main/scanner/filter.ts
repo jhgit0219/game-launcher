@@ -123,24 +123,19 @@ const SYSTEM_TITLE_PREFIXES = [
 ];
 
 // Substrings that indicate runtimes, SDKs, or infrastructure.
+// Keep this list tight — many real games contain words like "update" or "version".
 const SYSTEM_TITLE_SUBSTRINGS = [
-  'visual c++', 'vc redist', '.net ', 'directx',
-  'redistributable', 'runtime', 'sdk', 'toolkit',
-  'x86', 'x64', '(x86)', '(x64)', '(64-bit)', '(32-bit)',
-  'build ', 'version ', 'update ',
+  'visual c++', 'vc redist', 'directx redistributable',
+  'redistributable', ' runtime', ' sdk',
+  'vcredist', '.net framework', '.net runtime',
 ];
 
-// Patterns that catch installers, services, and other process-level junk.
-const SYSTEM_NAME_PATTERNS: RegExp[] = [
-  /setup/i, /install/i, /unins/i, /\bupdat(e|er)\b/i, /patcher/i,
-  /\bservice\b/i, /\bhelper\b/i, /\bdaemon\b/i, /\bagent\b/i, /\bhost\b/i,
-  /redistribut(able)?/i, /\bruntime\b/i, /dotnet/i, /vcredist/i,
-  /crash(handler|reporter|pad)?/i, /\breport(er)?\b/i, /\bdiag\b/i,
-  /\btoolkit\b/i, /\bsdk\b/i, /\bframework\b/i, /\bcomponent\b/i,
-  /\bmodule\b/i, /\bpackage\b/i, /\bextension\b/i, /\bplugin\b/i,
-  /\badd-in\b/i, /\bcodec\b/i, /\blibrary\b/i,
-  /\bdriver\b/i, /\bmanager\b/i, /\bnotification\b/i,
-  /\bredeem\b/i, /\bcertificat/i, /\bverif/i,
+// Patterns for exe filenames that are clearly not game executables.
+// These are ONLY checked against exe filenames, NOT against game titles.
+const SYSTEM_EXE_PATTERNS: RegExp[] = [
+  /^setup/i, /^install/i, /^unins/i, /^vcredist/i, /^dotnet/i,
+  /^dxsetup/i, /^ue4prereq/i, /^bootstrapper/i, /^prereq/i,
+  /^redist/i, /^crashhandler/i, /^crashreporter/i,
 ];
 
 /** Pure version strings like "0.296.0.23" or "3.12". */
@@ -149,7 +144,7 @@ const VERSION_ONLY_PATTERN = /^\d[\d.]+$/;
 /** Titles with fewer than 3 characters after trimming. */
 const TOO_SHORT_PATTERN = /^.{0,2}$/;
 
-const MIN_EXE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MIN_EXE_SIZE_BYTES = 500 * 1024; // 500 KB — many indie games are small
 
 function exeIsTooSmall(exePath: string): boolean {
   try {
@@ -162,9 +157,8 @@ function exeIsTooSmall(exePath: string): boolean {
 function exeNameIsSystemProcess(exePath: string): boolean {
   const parts = exePath.replace(/\\/g, '/').split('/');
   const filename = parts[parts.length - 1] ?? exePath;
-  const name = filename.replace(/\.exe$/i, '');
-  for (const pattern of SYSTEM_NAME_PATTERNS) {
-    if (pattern.test(name)) return true;
+  for (const pattern of SYSTEM_EXE_PATTERNS) {
+    if (pattern.test(filename)) return true;
   }
   return false;
 }
@@ -203,11 +197,6 @@ export function passesPreFilter(result: ScanResultWithPublisher): boolean {
     if (lower.includes(sub)) return false;
   }
 
-  // Drop titles matching installer / service name patterns.
-  for (const pattern of SYSTEM_NAME_PATTERNS) {
-    if (pattern.test(title)) return false;
-  }
-
   // Drop results installed under known system paths.
   const checkPath = result.installPath ?? result.exePath;
   if (checkPath) {
@@ -224,7 +213,7 @@ export function passesPreFilter(result: ScanResultWithPublisher): boolean {
   // Drop executables that are too small to be a game.
   if (result.exePath && exeIsTooSmall(result.exePath)) return false;
 
-  // Drop executables whose filename looks like a system process.
+  // Drop executables whose filename looks like an installer/system process.
   if (result.exePath && exeNameIsSystemProcess(result.exePath)) return false;
 
   return true;

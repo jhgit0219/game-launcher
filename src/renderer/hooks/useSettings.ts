@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   launchOnStartup: false,
   steamGridDbApiKey: '',
   artQuality: 'standard',
+  sidebarAutoHide: false,
+  thumbnailSize: 'medium',
 };
 
 interface UseSettingsResult {
@@ -42,11 +44,21 @@ export function useSettings(): UseSettingsResult {
     };
   }, []);
 
+  // Sync settings across all useSettings() instances via custom event
+  useEffect(() => {
+    function onSettingsChanged(e: Event) {
+      setSettings((e as CustomEvent<AppSettings>).detail);
+    }
+    window.addEventListener('settings-changed', onSettingsChanged);
+    return () => window.removeEventListener('settings-changed', onSettingsChanged);
+  }, []);
+
   const updateSettings = useCallback(
     async (patch: Partial<AppSettings>) => {
       const next = { ...settings, ...patch };
       setSettings(next);
       await ipc.settings.update(patch);
+      window.dispatchEvent(new CustomEvent('settings-changed', { detail: next }));
     },
     [settings],
   );

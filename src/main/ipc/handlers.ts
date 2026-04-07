@@ -1,7 +1,8 @@
-import { ipcMain, dialog, shell } from 'electron';
+import { ipcMain, dialog, shell, app } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { Channels } from './channels';
 import { scanOrchestrator } from '../scanner/index';
+import { clearTitleCache } from '../scanner/title-resolver';
 import { gameLauncher } from '../launcher/index';
 import { artFetcher } from '../art/index';
 import {
@@ -39,10 +40,16 @@ const SETTINGS_VALIDATORS: {
   launchOnStartup:     (v): v is boolean                    => typeof v === 'boolean',
   steamGridDbApiKey:   (v): v is string                     => typeof v === 'string' && v.length <= 512,
   artQuality:          (v): v is 'standard' | 'high'        => v === 'standard' || v === 'high',
+  sidebarAutoHide:     (v): v is boolean                    => typeof v === 'boolean',
+  thumbnailSize:       (v): v is 'small' | 'medium' | 'large' => v === 'small' || v === 'medium' || v === 'large',
 };
 
 export function registerIpcHandlers(win: BrowserWindow): void {
   // ─── Scan ────────────────────────────────────────────────────────────────────
+
+  ipcMain.handle(Channels.TITLES_REFRESH, () => {
+    clearTitleCache();
+  });
 
   ipcMain.handle(Channels.SCAN_START, async () => {
     if (scanOrchestrator.running) return;
@@ -102,6 +109,22 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     return updateGame(gameId, { hidden });
   });
 
+  const VALID_STATUSES = new Set(['unplayed', 'playing', 'completed', 'on-hold', 'dropped']);
+
+  ipcMain.handle(Channels.GAMES_SET_STATUS, (_event, gameId: unknown, status: unknown) => {
+    if (!isValidUuid(gameId)) return null;
+    if (typeof status !== 'string' || !VALID_STATUSES.has(status)) return null;
+    return updateGame(gameId, { status: status as 'unplayed' | 'playing' | 'completed' | 'on-hold' | 'dropped' });
+  });
+
+  ipcMain.handle(Channels.GAMES_UNINSTALL, async (_event, gameId: unknown) => {
+    if (!isValidUuid(gameId)) return { ok: false, error: 'Invalid game ID.' };
+    const game = findGameById(gameId);
+    if (!game) return { ok: false, error: 'Game not found.' };
+    const { uninstallGame } = await import('../launcher/uninstall');
+    return uninstallGame(game);
+  });
+
   ipcMain.handle(Channels.GAMES_OPEN_FOLDER, async (_event, gameId: unknown) => {
     if (!isValidUuid(gameId)) return;
     const game = findGameById(gameId);
@@ -154,6 +177,18 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     artFetcher.enqueue(gameId, win);
   });
 
+  ipcMain.handle(Channels.ART_REFETCH_MISSING, () => {
+    artFetcher.refetchAll(win, true);
+  });
+
+  ipcMain.handle(Channels.ART_REFETCH_ALL, () => {
+    artFetcher.refetchAll(win, false);
+  });
+
+  ipcMain.handle(Channels.ART_FAILURES, () => {
+    return artFetcher.failures;
+  });
+
   // ─── Dialogs ─────────────────────────────────────────────────────────────────
 
   ipcMain.handle(Channels.DIALOG_SELECT_DIR, async () => {
@@ -173,6 +208,23 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     return result.canceled ? null : result.filePaths[0] ?? null;
   });
 
+  // ─── App reset ──────────────────────────────────────────────────────────────
+
+  ipcMain.handle(Channels.APP_RESET, async () => {
+    const { rmSync, existsSync } = await import('node:fs');
+    const path = await import('node:path');
+    const appData = process.env['APPDATA'];
+    if (!appData) return;
+
+    const appDir = path.join(appData, 'game-launcher');
+    if (existsSync(appDir)) {
+      rmSync(appDir, { recursive: true, force: true });
+    }
+
+    app.relaunch();
+    app.exit(0);
+  });
+
   // ─── Window controls ─────────────────────────────────────────────────────────
 
   ipcMain.on(Channels.WINDOW_MINIMIZE, () => win.minimize());
@@ -183,6 +235,10 @@ export function registerIpcHandlers(win: BrowserWindow): void {
   });
 
   ipcMain.on(Channels.WINDOW_CLOSE, () => win.close());
+
+  ipcMain.handle(Channels.WINDOW_TOGGLE_FULLSCREEN, () => {
+    win.setFullScreen(!win.isFullScreen());
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

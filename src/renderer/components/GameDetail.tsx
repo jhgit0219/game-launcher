@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import type { Game } from '../types/game';
+import type { Game, GameStatus } from '../types/game';
 import { PLATFORM_LABELS } from '../../shared/constants';
 import { ipc } from '../lib/ipc';
 import styles from './GameDetail.module.css';
 
+const STATUS_OPTIONS: { value: GameStatus; label: string }[] = [
+  { value: 'unplayed', label: 'Unplayed' },
+  { value: 'playing', label: 'Playing' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on-hold', label: 'On Hold' },
+  { value: 'dropped', label: 'Dropped' },
+];
+
 export interface GameDetailProps {
   game: Game;
   onClose: () => void;
+  onStatusChange?: () => void;
 }
 
 function formatPlaytime(minutes: number): string {
@@ -28,9 +37,10 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export function GameDetail({ game, onClose }: GameDetailProps) {
+export function GameDetail({ game, onClose, onStatusChange }: GameDetailProps) {
   const [launching, setLaunching] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [status, setStatus] = useState<GameStatus>(game.status ?? 'unplayed');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleLaunch = useCallback(async () => {
@@ -51,9 +61,21 @@ export function GameDetail({ game, onClose }: GameDetailProps) {
     onClose();
   }, [game.id, onClose]);
 
+  const handleStatusChange = useCallback((newStatus: GameStatus) => {
+    setStatus(newStatus);
+    ipc.games.setStatus(game.id, newStatus).then(() => onStatusChange?.());
+  }, [game.id, onStatusChange]);
+
   const handleOpenFolder = useCallback(() => {
     ipc.games.openInstallFolder(game.id);
   }, [game.id]);
+
+  const handleUninstall = useCallback(async () => {
+    const result = await ipc.games.uninstall(game.id);
+    if (result.ok) {
+      onClose();
+    }
+  }, [game.id, onClose]);
 
   // Close on Escape
   useEffect(() => {
@@ -139,6 +161,21 @@ export function GameDetail({ game, onClose }: GameDetailProps) {
             )}
           </div>
 
+          <div className={styles.statusRow}>
+            <span className={styles.metaLabel}>Status</span>
+            <div className={styles.statusGroup}>
+              {STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`${styles.statusBtn} ${status === opt.value ? styles.statusBtnActive : ''}`}
+                  onClick={() => handleStatusChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className={styles.actions}>
             <button
               className={styles.launchBtn}
@@ -163,6 +200,12 @@ export function GameDetail({ game, onClose }: GameDetailProps) {
                   Open Folder
                 </button>
               )}
+              <button
+                className={`${styles.actionBtn} ${styles.dangerBtn}`}
+                onClick={handleUninstall}
+              >
+                Uninstall
+              </button>
               <button
                 className={`${styles.actionBtn} ${styles.dangerBtn}`}
                 onClick={handleHide}

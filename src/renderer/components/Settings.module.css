@@ -191,3 +191,40 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Art failure log */
+.failureLog {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-active);
+}
+
+.failureList {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.failureItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.failureTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.failureReason {
+  font-size: 11px;
+  color: var(--text-muted);
+}

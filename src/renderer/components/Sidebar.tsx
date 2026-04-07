@@ -1,6 +1,6 @@
-import { useCallback, useState, useMemo, useRef, useEffect, type ChangeEvent } from 'react';
+import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { useLibrary } from '../context/LibraryContext';
-import type { Game, Platform } from '../types/game';
+import type { Game, GameStatus, Platform } from '../types/game';
 import { ALL_PLATFORMS, PLATFORM_LABELS } from '../../shared/constants';
 import { useScanProgress } from '../hooks/useScanProgress';
 import styles from './Sidebar.module.css';
@@ -8,14 +8,24 @@ import styles from './Sidebar.module.css';
 export interface SidebarProps {
   games?: Game[];
   onSelectGame?: (game: Game) => void;
+  autoHide?: boolean;
+  statusFilter?: string | null;
+  onStatusFilter?: (status: string | null) => void;
+  onGameStatusChange?: (gameId: string, status: string) => void;
 }
 
-export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
+const STATUS_LIST: { value: GameStatus; label: string }[] = [
+  { value: 'unplayed', label: 'Unplayed' },
+  { value: 'playing', label: 'Playing' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on-hold', label: 'On Hold' },
+  { value: 'dropped', label: 'Dropped' },
+];
+
+export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilter, onStatusFilter, onGameStatusChange }: SidebarProps) {
   const {
     view,
     setView,
-    searchQuery,
-    setSearchQuery,
     platforms,
     togglePlatform,
     favoritesOnly,
@@ -29,7 +39,34 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
   const { scanning, progress, startScan } = useScanProgress();
 
   const [quickFiltersCollapsed, setQuickFiltersCollapsed] = useState(false);
+  const [statusCollapsed, setStatusCollapsed] = useState(false);
   const [platformsCollapsed, setPlatformsCollapsed] = useState(false);
+
+  const [hovered, setHovered] = useState(false);
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const collapsed = autoHide && !hovered;
+
+  const handleMouseEnter = useCallback(() => {
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current);
+      collapseTimer.current = null;
+    }
+    setHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    collapseTimer.current = setTimeout(() => {
+      setHovered(false);
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimer.current) {
+        clearTimeout(collapseTimer.current);
+      }
+    };
+  }, []);
 
   const [collapsedPlatforms, setCollapsedPlatforms] = useState<Set<Platform>>(
     new Set(),
@@ -87,13 +124,6 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
     [onSelectGame],
   );
 
-  const handleSearchChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      setSearchQuery(e.target.value);
-    },
-    [setSearchQuery],
-  );
-
   // ── Resizable filters / game-list split ─────────────────────────────────
 
   // Height of the filters section in pixels. null means use natural height.
@@ -133,66 +163,39 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
   }, []);
 
   return (
-    <aside className={styles.sidebar} aria-label="Sidebar navigation">
-      {/* Search */}
-      <div className={styles.searchBox}>
-        <svg
-          className={styles.searchIcon}
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="10.5" y1="10.5" x2="15" y2="15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="Search games..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          aria-label="Search games"
-        />
-        {searchQuery && (
-          <button
-            className={styles.clearSearch}
-            onClick={() => setSearchQuery('')}
-            aria-label="Clear search"
-          >
-            &#10005;
-          </button>
-        )}
-      </div>
-
+    <aside
+      className={`${styles.sidebar} ${autoHide ? styles.sidebarAutoHide : ''} ${collapsed ? styles.sidebarCollapsed : ''}`}
+      aria-label="Sidebar navigation"
+      onMouseEnter={autoHide ? handleMouseEnter : undefined}
+      onMouseLeave={autoHide ? handleMouseLeave : undefined}
+    >
       {/* Navigation */}
-      <nav className={styles.nav}>
+      <nav className={`${styles.nav} ${collapsed ? styles.navCollapsed : ''}`}>
         <button
-          className={`${styles.navItem} ${view === 'library' ? styles.navItemActive : ''}`}
+          className={`${styles.navItem} ${collapsed ? styles.navItemCollapsed : ''} ${view === 'library' ? styles.navItemActive : ''}`}
           onClick={() => setView('library')}
         >
           <span className={styles.navIcon}>&#127918;</span>
-          Library
+          {!collapsed && 'Library'}
         </button>
         <button
-          className={`${styles.navItem} ${view === 'apps' ? styles.navItemActive : ''}`}
+          className={`${styles.navItem} ${collapsed ? styles.navItemCollapsed : ''} ${view === 'apps' ? styles.navItemActive : ''}`}
           onClick={() => setView('apps')}
         >
           <span className={styles.navIcon}>&#128187;</span>
-          Apps
+          {!collapsed && 'Apps'}
         </button>
         <button
-          className={`${styles.navItem} ${view === 'settings' ? styles.navItemActive : ''}`}
+          className={`${styles.navItem} ${collapsed ? styles.navItemCollapsed : ''} ${view === 'settings' ? styles.navItemActive : ''}`}
           onClick={() => setView('settings')}
         >
           <span className={styles.navIcon}>&#9881;</span>
-          Settings
+          {!collapsed && 'Settings'}
         </button>
       </nav>
 
       {/* Filters (only in library view) */}
-      {view === 'library' && (
+      {!collapsed && view === 'library' && (
         <div
           ref={filtersRef}
           className={styles.filters}
@@ -230,6 +233,45 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
             )}
           </div>
 
+          {/* Status filters — collapsible */}
+          <div className={styles.filterSection}>
+            <button
+              className={styles.filterTitle}
+              onClick={() => setStatusCollapsed(v => !v)}
+              aria-expanded={!statusCollapsed}
+            >
+              <span className={`${styles.collapseIcon} ${statusCollapsed ? styles.collapseIconCollapsed : ''}`}>&#9660;</span>
+              Status
+            </button>
+            {!statusCollapsed && (
+              STATUS_LIST.map((status) => {
+                const count = games.filter(g => g.status === status.value).length;
+                const active = statusFilter === status.value;
+                return (
+                  <div
+                    key={status.value}
+                    className={`${styles.statusItem} ${active ? styles.statusItemActive : ''}`}
+                    onClick={() => onStatusFilter?.(active ? null : status.value)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const gameId = e.dataTransfer.getData('text/gameId');
+                      if (gameId) onGameStatusChange?.(gameId, status.value);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') onStatusFilter?.(active ? null : status.value);
+                    }}
+                  >
+                    <span>{status.label}</span>
+                    <span className={styles.statusCount}>{count}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
           {/* Platform filters — collapsible */}
           <div className={styles.filterSection}>
             <button
@@ -263,7 +305,7 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
       )}
 
       {/* Drag handle — only shown in library view when both panels are present */}
-      {view === 'library' && games.length > 0 && (
+      {!collapsed && view === 'library' && games.length > 0 && (
         <div
           className={styles.dragHandle}
           role="separator"
@@ -273,7 +315,7 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
       )}
 
       {/* Game List (only in library view) */}
-      {view === 'library' && games.length > 0 && (
+      {!collapsed && view === 'library' && games.length > 0 && (
         <div className={styles.gameList}>
           {/* Library section */}
           {(favoriteGames.length > 0 || recentGames.length > 0) && (
@@ -317,18 +359,18 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
               const platformGames = gamesByPlatform.get(platform);
               if (!platformGames || platformGames.length === 0) return null;
 
-              const collapsed = collapsedPlatforms.has(platform);
+              const platformCollapsed = collapsedPlatforms.has(platform);
 
               return (
                 <div key={platform}>
                   <button
                     className={styles.gameListHeader}
                     onClick={() => toggleCollapse(platform)}
-                    aria-expanded={!collapsed}
+                    aria-expanded={!platformCollapsed}
                     aria-label={`${PLATFORM_LABELS[platform]}, ${platformGames.length} games`}
                   >
                     <span
-                      className={`${styles.collapseIcon} ${collapsed ? styles.collapseIconCollapsed : ''}`}
+                      className={`${styles.collapseIcon} ${platformCollapsed ? styles.collapseIconCollapsed : ''}`}
                       aria-hidden="true"
                     >
                       &#9660;
@@ -337,7 +379,7 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
                       {PLATFORM_LABELS[platform]} ({platformGames.length})
                     </span>
                   </button>
-                  {!collapsed && (
+                  {!platformCollapsed && (
                     <div className={styles.gameListItems}>
                       {platformGames.map((game) => (
                         <button
@@ -359,7 +401,7 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
       )}
 
       {/* Scan status */}
-      <div className={styles.scanSection}>
+      {!collapsed && <div className={styles.scanSection}>
         {scanning ? (
           <div className={styles.scanProgress}>
             <div className={styles.scanDot} />
@@ -373,7 +415,7 @@ export function Sidebar({ games = [], onSelectGame }: SidebarProps) {
             Scan for Games
           </button>
         )}
-      </div>
+      </div>}
     </aside>
   );
 }

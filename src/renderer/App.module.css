@@ -1,5 +1,6 @@
 .shell {
   display: flex;
+  position: relative;
   height: 100%;
   width: 100%;
   overflow: hidden;
@@ -16,8 +17,8 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-lg) var(--space-lg) 0;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   flex-shrink: 0;
 }
 
@@ -25,15 +26,95 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .heading {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .count {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
+}
+
+/* Search bar — centered in header */
+.searchBar {
+  flex: 1;
+  position: relative;
+  max-width: 480px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 7px 32px 7px 34px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:focus {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.searchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: var(--space-xs);
+  line-height: 1;
+}
+
+.searchClear:hover {
+  color: var(--text-primary);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.headerBtn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.headerBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.contentAutoHide {
+  margin-left: var(--sidebar-collapsed-width);
 }

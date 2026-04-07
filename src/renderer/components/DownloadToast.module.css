@@ -1,0 +1,37 @@
+.toast {
+  position: fixed;
+  bottom: var(--space-md);
+  right: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-md);
+  z-index: var(--z-toast);
+  max-width: 360px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--bg-active);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -175,6 +175,47 @@
   font-family: 'Consolas', 'Courier New', monospace;
 }
 
+/* Status */
+.statusRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.statusBtn {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.statusBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.statusBtnActive {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+.statusBtnActive:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
 /* Actions */
 .actions {
   display: flex;

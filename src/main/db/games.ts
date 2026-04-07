@@ -3,6 +3,7 @@ import { getDb, persistDb } from './index';
 import type { SqlValue } from 'sql.js';
 
 export type Platform = 'steam' | 'epic' | 'gog' | 'origin' | 'battlenet' | 'registry' | 'custom';
+export type GameStatus = 'unplayed' | 'playing' | 'completed' | 'on-hold' | 'dropped';
 
 export interface Game {
   id: string;
@@ -19,6 +20,7 @@ export interface Game {
   favorite: boolean;
   hidden: boolean;
   genre: string | null;
+  status: GameStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +39,7 @@ export interface InsertGameInput {
   favorite?: boolean;
   hidden?: boolean;
   genre?: string | null;
+  status?: GameStatus;
 }
 
 export interface UpdateGameInput {
@@ -51,6 +54,7 @@ export interface UpdateGameInput {
   favorite?: boolean;
   hidden?: boolean;
   genre?: string | null;
+  status?: GameStatus;
 }
 
 export interface ListGamesFilter {
@@ -125,6 +129,7 @@ function rowToGame(row: Record<string, SqlValue>): Game {
     favorite:         (row['favorite'] as number) === 1,
     hidden:           (row['hidden'] as number) === 1,
     genre:            (row['genre'] as string | null) ?? null,
+    status:           (row['status'] as GameStatus | null) ?? 'unplayed',
     createdAt:        row['created_at'] as string,
     updatedAt:        row['updated_at'] as string,
   };
@@ -147,11 +152,11 @@ export function insertGame(input: InsertGameInput): Game {
     INSERT INTO games (
       id, title, platform, executable_path, install_path, platform_id,
       cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-      favorite, hidden, genre, created_at, updated_at
+      favorite, hidden, genre, status, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?
     )
   `, [
     id,
@@ -168,6 +173,7 @@ export function insertGame(input: InsertGameInput): Game {
     input.favorite ? 1 : 0,
     input.hidden ? 1 : 0,
     input.genre ?? null,
+    input.status ?? 'unplayed',
     now,
     now,
   ]);
@@ -193,6 +199,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | null {
   if (input.favorite !== undefined)       { fields.push('favorite = ?');         values.push(input.favorite ? 1 : 0); }
   if (input.hidden !== undefined)         { fields.push('hidden = ?');           values.push(input.hidden ? 1 : 0); }
   if (input.genre !== undefined)          { fields.push('genre = ?');            values.push(input.genre); }
+  if (input.status !== undefined)         { fields.push('status = ?');           values.push(input.status); }
 
   if (fields.length === 0) return existing;
 
@@ -202,6 +209,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | null {
   values.push(id);
 
   getDb().run(`UPDATE games SET ${fields.join(', ')} WHERE id = ?`, values);
+  persistDb();
 
   // Construct the return value directly from the merged state to avoid a
   // second SELECT round-trip on the hot path.
@@ -218,6 +226,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | null {
     ...(input.favorite           !== undefined && { favorite:        input.favorite }),
     ...(input.hidden             !== undefined && { hidden:          input.hidden }),
     ...(input.genre              !== undefined && { genre:           input.genre }),
+    ...(input.status             !== undefined && { status:          input.status }),
     updatedAt,
   };
 }
@@ -226,7 +235,7 @@ export function findGameById(id: string): Game | null {
   const row = queryOne(`
     SELECT id, title, platform, executable_path, install_path, platform_id,
            cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-           favorite, hidden, genre, created_at, updated_at
+           favorite, hidden, genre, status, created_at, updated_at
     FROM games
     WHERE id = ?
   `, [id]);
@@ -238,10 +247,22 @@ export function findGameByPlatformId(platform: Platform, platformId: string): Ga
   const row = queryOne(`
     SELECT id, title, platform, executable_path, install_path, platform_id,
            cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-           favorite, hidden, genre, created_at, updated_at
+           favorite, hidden, genre, status, created_at, updated_at
     FROM games
     WHERE platform = ? AND platform_id = ?
   `, [platform, platformId]);
+
+  return row ? rowToGame(row) : null;
+}
+
+export function findGameByInstallPath(installPath: string): Game | null {
+  const row = queryOne(`
+    SELECT id, title, platform, executable_path, install_path, platform_id,
+           cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
+           favorite, hidden, genre, status, created_at, updated_at
+    FROM games
+    WHERE install_path = ?
+  `, [installPath]);
 
   return row ? rowToGame(row) : null;
 }
@@ -250,7 +271,7 @@ export function findGameByTitleAndPath(title: string, installPath: string | null
   const row = queryOne(`
     SELECT id, title, platform, executable_path, install_path, platform_id,
            cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-           favorite, hidden, genre, created_at, updated_at
+           favorite, hidden, genre, status, created_at, updated_at
     FROM games
     WHERE LOWER(title) = LOWER(?) AND (install_path = ? OR (install_path IS NULL AND ? IS NULL))
   `, [title, installPath, installPath]);
@@ -284,7 +305,7 @@ export function listGames(filter: ListGamesFilter = {}): Game[] {
   const rows = queryAll(`
     SELECT id, title, platform, executable_path, install_path, platform_id,
            cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-           favorite, hidden, genre, created_at, updated_at
+           favorite, hidden, genre, status, created_at, updated_at
     FROM games
     ${where}
     ORDER BY title COLLATE NOCASE ASC
@@ -349,11 +370,11 @@ export function bulkInsertGames(inputs: InsertGameInput[]): number {
     INSERT OR IGNORE INTO games (
       id, title, platform, executable_path, install_path, platform_id,
       cover_art_path, cover_art_url, launch_uri, playtime_minutes, last_played,
-      favorite, hidden, genre, created_at, updated_at
+      favorite, hidden, genre, status, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?
     )
   `;
 
@@ -376,6 +397,7 @@ export function bulkInsertGames(inputs: InsertGameInput[]): number {
         item.favorite ? 1 : 0,
         item.hidden ? 1 : 0,
         item.genre ?? null,
+        item.status ?? 'unplayed',
         now,
         now,
       ]);

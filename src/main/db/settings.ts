@@ -9,6 +9,8 @@ export interface AppSettings {
   launchOnStartup: boolean;
   steamGridDbApiKey: string;
   artQuality: 'standard' | 'high';
+  sidebarAutoHide: boolean;
+  thumbnailSize: 'small' | 'medium' | 'large';
 }
 
 const DEFAULTS: AppSettings = {
@@ -19,6 +21,8 @@ const DEFAULTS: AppSettings = {
   launchOnStartup:     false,
   steamGridDbApiKey:   '',
   artQuality:          'standard',
+  sidebarAutoHide:     false,
+  thumbnailSize:       'medium' as const,
 };
 
 // ---------------------------------------------------------------------------

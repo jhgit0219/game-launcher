@@ -12,6 +12,7 @@ import { DriveScanScanner } from './sources/drive-scan';
 import {
   insertGame,
   findGameByPlatformId,
+  findGameByInstallPath,
   findGameByTitleAndPath,
   updateGame,
   listGames,
@@ -23,6 +24,7 @@ import { startScan, completeScan } from '../db/scan-log';
 import { getSetting } from '../db/settings';
 import { isLikelyGame } from './filter';
 import { loadValidationCache, validateResults } from './validator';
+import { resolveTitles } from './title-resolver';
 
 export interface ScanSummary {
   added: number;
@@ -160,6 +162,10 @@ export class ScanOrchestrator {
         return entry?.status !== 'not_a_game';
       });
 
+      // Resolve correct titles using SteamGridDB / Steam Store lookups.
+      this.sendProgress(win, { source: 'orchestrator', found: validated.length, phase: 'persisting' });
+      await resolveTitles(validated);
+
       // Persist results.
       this.sendProgress(win, { source: 'orchestrator', found: validated.length, phase: 'persisting' });
 
@@ -231,6 +237,7 @@ export class ScanOrchestrator {
   private deduplicate(results: ScanResult[]): ScanResult[] {
     const byPlatformId = new Map<string, ScanResult>();
     const byTitle = new Map<string, ScanResult>();
+    const byInstallPath = new Map<string, ScanResult>();
     const output: ScanResult[] = [];
 
     // Trusted platforms first so they win deduplication over custom/registry.
@@ -249,8 +256,14 @@ export class ScanOrchestrator {
         byPlatformId.set(pidKey, result);
       }
 
+      // Dedup by install path — same folder = same game regardless of scanner.
+      if (result.installPath) {
+        const normPath = result.installPath.toLowerCase().replace(/\\/g, '/').replace(/\/+$/, '');
+        if (byInstallPath.has(normPath)) continue;
+        byInstallPath.set(normPath, result);
+      }
+
       // Dedup by normalized title across ALL platforms.
-      // If Steam already found "Sekiro", the custom scanner's "Sekiro" is dropped.
       const normTitle = result.title.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (byTitle.has(normTitle)) continue;
       byTitle.set(normTitle, result);
@@ -274,6 +287,19 @@ export class ScanOrchestrator {
           title: result.title,
           executablePath: result.exePath,
           installPath: result.installPath,
+          launchUri: result.launchUri,
+        });
+        return { wasAdded: false };
+      }
+    }
+
+    // Check by install path alone (catches title changes from title-resolver)
+    if (result.installPath) {
+      const existingByPath = findGameByInstallPath(result.installPath);
+      if (existingByPath) {
+        updateGame(existingByPath.id, {
+          title: result.title,
+          executablePath: result.exePath,
           launchUri: result.launchUri,
         });
         return { wasAdded: false };
