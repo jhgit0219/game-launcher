@@ -1,0 +1,230 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: var(--z-detail);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.panel {
+  position: relative;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  max-width: 600px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  animation: slideUp 0.25s ease;
+  outline: none;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.closeBtn {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  font-size: 14px;
+  z-index: 2;
+  transition: background var(--transition-fast);
+}
+
+.closeBtn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Cover Area */
+.coverArea {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.coverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.coverPlaceholder[data-platform='steam'] {
+  background: linear-gradient(135deg, #1b2838 0%, #2a475e 100%);
+}
+
+.coverPlaceholder[data-platform='epic'] {
+  background: linear-gradient(135deg, #2f2f2f 0%, #4a4a4a 100%);
+}
+
+.coverPlaceholder[data-platform='gog'] {
+  background: linear-gradient(135deg, #4a2a6a 0%, #6b3fa0 100%);
+}
+
+.coverPlaceholder[data-platform='origin'] {
+  background: linear-gradient(135deg, #f56c2d 0%, #e05020 100%);
+}
+
+.coverPlaceholder[data-platform='battlenet'] {
+  background: linear-gradient(135deg, #003f6a 0%, #00aeff 100%);
+}
+
+.coverPlaceholder[data-platform='registry'] {
+  background: linear-gradient(135deg, #1a1a3a 0%, #3a3a5a 100%);
+}
+
+.coverPlaceholder[data-platform='custom'] {
+  background: linear-gradient(135deg, #2a1a3a 0%, #4a3a5a 100%);
+}
+
+.coverPlaceholderText {
+  font-size: 24px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+/* Content */
+.content {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* Meta grid */
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metaItem:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.metaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.metaValue {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.pathValue {
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-all;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.launchBtn {
+  width: 100%;
+  padding: var(--space-md);
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--accent-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.launchBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.launchBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryActions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 13px;
+  color: var(--text-secondary);
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius-md);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.actionBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dangerBtn:hover {
+  border-color: var(--status-error);
+  color: var(--status-error);
+}

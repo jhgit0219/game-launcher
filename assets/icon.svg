@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder icon — replace with a proper .ico file at assets/icon.ico before packaging.
+  electron-builder requires a Windows ICO file (256x256 recommended) at the path
+  specified by build.icon in package.json.
+
+  To convert this SVG to ICO:
+    1. Export as PNG at 256x256
+    2. Use a tool such as ImageMagick: convert icon-256.png -define icon:auto-resize=256,64,48,32,16 icon.ico
+    3. Place the resulting icon.ico in this directory
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="32" fill="#1a1a2e"/>
+  <rect x="32" y="80" width="192" height="128" rx="8" fill="#16213e"/>
+  <rect x="48" y="96" width="160" height="96" rx="4" fill="#0f3460"/>
+  <!-- Controller body -->
+  <rect x="72" y="108" width="48" height="30" rx="6" fill="#e94560"/>
+  <rect x="136" y="108" width="48" height="30" rx="6" fill="#e94560"/>
+  <!-- D-pad -->
+  <rect x="80" y="115" width="6" height="16" rx="2" fill="#1a1a2e"/>
+  <rect x="75" y="120" width="16" height="6" rx="2" fill="#1a1a2e"/>
+  <!-- Buttons -->
+  <circle cx="156" cy="116" r="4" fill="#1a1a2e"/>
+  <circle cx="168" cy="120" r="4" fill="#1a1a2e"/>
+  <circle cx="156" cy="124" r="4" fill="#1a1a2e"/>
+  <circle cx="144" cy="120" r="4" fill="#1a1a2e"/>
+  <!-- Cable -->
+  <path d="M 120 138 Q 128 150 136 138" stroke="#e94560" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>

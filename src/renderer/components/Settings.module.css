@@ -1,0 +1,193 @@
+.page {
+  padding: var(--space-xl);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  height: 100%;
+  max-width: 700px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xl);
+}
+
+.section {
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--bg-active);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.sectionDesc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+}
+
+/* Directory list */
+.dirList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.emptyText {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.dirItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.dirPath {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'Consolas', 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: var(--space-sm);
+}
+
+.dirRemove {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.dirRemove:hover {
+  color: var(--status-error);
+}
+
+.addDirBtn {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 13px;
+  color: var(--accent-primary);
+  border: 1px dashed var(--accent-muted);
+  border-radius: var(--radius-md);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.addDirBtn:hover {
+  background: var(--accent-muted);
+  border-color: var(--accent-primary);
+}
+
+/* Toggles */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--text-primary);
+}
+
+.toggle input[type='checkbox'] {
+  accent-color: var(--accent-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Field rows */
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.fieldLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.textInput,
+.numberInput,
+.selectInput {
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.textInput:focus,
+.numberInput:focus,
+.selectInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.numberInput {
+  width: 100px;
+}
+
+.selectInput {
+  width: 200px;
+}
+
+.selectInput option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Action button */
+.actionBtn {
+  padding: var(--space-sm) var(--space-lg);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--accent-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

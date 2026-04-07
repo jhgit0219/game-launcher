@@ -1,0 +1,36 @@
+# Local config
+.studio/
+studio.config.json
+
+# Secrets / Environment
+.env
+.env.*
+*.key
+*.pem
+*.secret
+credentials.json
+secrets/
+
+# Build Artifacts
+node_modules/
+dist/
+build/
+out/
+.next/
+
+# Database / Data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Electron
+release/
+*.unpacked/

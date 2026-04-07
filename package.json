@@ -1,0 +1,83 @@
+{
+  "name": "game-launcher",
+  "version": "0.1.0",
+  "description": "Desktop game launcher and app organizer for Windows",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "npm run build:main && concurrently \"vite\" \"wait-on http-get://localhost:5180 && electron .\"",
+    "build": "npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "package": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder",
+    "lint": "tsc --noEmit -p tsconfig.main.json && tsc --noEmit -p tsconfig.renderer.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/sql.js": "^1.4.11",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^8.2.2",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "jsdom": "^29.0.2",
+    "typescript": "^5.4.5",
+    "vite": "^8.0.5",
+    "vitest": "^4.1.2",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "sharp": "^0.33.4",
+    "sql.js": "^1.14.1"
+  },
+  "build": {
+    "appId": "com.gamelauncher.app",
+    "productName": "Game Launcher",
+    "icon": "assets/icon.ico",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
