@@ -26,13 +26,26 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-sm);
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .heading {
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.filterBadge {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-hover);
+  text-transform: capitalize;
+}
+
+.filterBadge::before {
+  content: ' / ';
+  color: var(--text-muted);
 }
 
 .count {
@@ -40,11 +53,12 @@
   color: var(--text-muted);
 }
 
-/* Search bar — centered in header */
+/* Search bar — fills remaining space, pushed right */
 .searchBar {
   flex: 1;
   position: relative;
   max-width: 480px;
+  margin-left: auto;
 }
 
 .searchIcon {

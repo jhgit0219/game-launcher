@@ -267,8 +267,20 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
               <span className={`${styles.collapseIcon} ${statusCollapsed ? styles.collapseIconCollapsed : ''}`}>&#9660;</span>
               Status
             </button>
-            {!statusCollapsed && (
-              STATUS_LIST.map((status) => {
+            {!statusCollapsed && (<>
+              {statusFilter && (
+                <div
+                  className={styles.statusItem}
+                  onClick={() => onStatusFilter?.(null)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onStatusFilter?.(null); }}
+                >
+                  <span>All Games</span>
+                  <span className={styles.statusCount}>{games.length}</span>
+                </div>
+              )}
+              {STATUS_LIST.map((status) => {
                 const count = games.filter(g => g.status === status.value).length;
                 const active = statusFilter === status.value;
                 return (
@@ -300,8 +312,8 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
                     <span className={styles.statusCount}>{count}</span>
                   </div>
                 );
-              })
-            )}
+              })}
+            </>)}
           </div>
 
           {activeFilterCount > 0 && (

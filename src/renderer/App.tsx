@@ -143,7 +143,16 @@ export function App() {
           <>
             <header className={styles.header}>
               <div className={styles.headerLeft}>
-                <h1 className={styles.heading}>Library</h1>
+                <h1 className={styles.heading}>
+                  Library
+                  {(statusFilter || platformFilter !== 'all') && (
+                    <span className={styles.filterBadge}>
+                      {statusFilter && statusFilter.replace('-', ' ')}
+                      {statusFilter && platformFilter !== 'all' && ' · '}
+                      {platformFilter !== 'all' && platformFilter}
+                    </span>
+                  )}
+                </h1>
                 {!loading && (
                   <span className={styles.count}>
                     {games.length} game{games.length !== 1 ? 's' : ''}
