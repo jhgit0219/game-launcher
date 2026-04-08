@@ -10,8 +10,9 @@ import { AppShortcuts } from './components/AppShortcuts';
 import { DownloadToast } from './components/DownloadToast';
 import { Settings } from './components/Settings';
 import { SortDropdown } from './components/SortDropdown';
+import { PlatformFilter } from './components/PlatformFilter';
 import { ThumbnailSizeSelector } from './components/ThumbnailSizeSelector';
-import type { Game, GameStatus, GamesListFilter } from './types/game';
+import type { Game, GameStatus, Platform, GamesListFilter } from './types/game';
 import styles from './App.module.css';
 
 export function App() {
@@ -19,7 +20,6 @@ export function App() {
     view,
     searchQuery,
     setSearchQuery,
-    platforms,
     favoritesOnly,
     recentlyPlayed,
     sortBy,
@@ -37,19 +37,19 @@ export function App() {
 
   const filter = useMemo<GamesListFilter>(
     () => ({
-      platforms: platforms.length > 0 ? platforms : undefined,
       favoritesOnly: favoritesOnly || undefined,
       recentlyPlayed: recentlyPlayed || undefined,
       sortBy,
     }),
-    [platforms, favoritesOnly, recentlyPlayed, sortBy],
+    [favoritesOnly, recentlyPlayed, sortBy],
   );
 
   const { games: allGames, loading, refetch } = useGames(filter);
 
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [platformFilter, setPlatformFilter] = useState<Platform | 'all'>('all');
 
-  // Client-side search and status filtering for instant reactive filtering
+  // Client-side filtering for instant reactive response
   const games = useMemo(() => {
     let filtered = allGames;
     if (searchQuery.trim()) {
@@ -59,8 +59,11 @@ export function App() {
     if (statusFilter) {
       filtered = filtered.filter((g) => g.status === statusFilter);
     }
+    if (platformFilter !== 'all') {
+      filtered = filtered.filter((g) => g.platform === platformFilter);
+    }
     return filtered;
-  }, [allGames, searchQuery, statusFilter]);
+  }, [allGames, searchQuery, statusFilter, platformFilter]);
 
   const { settings, updateSettings } = useSettings();
   const thumbnailSize = settings.thumbnailSize ?? 'medium';
@@ -191,6 +194,7 @@ export function App() {
                   value={thumbnailSize}
                   onChange={(size) => updateSettings({ thumbnailSize: size })}
                 />
+                <PlatformFilter value={platformFilter} onChange={setPlatformFilter} />
                 <SortDropdown value={sortBy} onChange={setSortBy} />
               </div>
             </header>

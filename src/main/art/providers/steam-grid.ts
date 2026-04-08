@@ -9,6 +9,7 @@ const API_BASE = 'https://www.steamgriddb.com/api/v2';
 interface SteamGridSearchResult {
   id: number;
   name: string;
+  types: string[];
 }
 
 interface SteamGridGridResult {
@@ -44,23 +45,36 @@ export async function fetchSteamGridDbCover(
     // This prevents "Bejeweled 2" from getting "Bejeweled" art.
     const normQuery = title.toLowerCase().replace(/[^a-z0-9]/g, '');
     let bestMatch = searchJson.data[0]!;
-    let bestScore = 0;
+    let bestScore = -1;
 
     for (const item of searchJson.data) {
+      let score = 0;
       const normName = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Title similarity
       if (normName === normQuery) {
-        bestMatch = item;
-        bestScore = 100;
-        break;
-      }
-      // Prefer items that contain the full query and are similar length
-      if (normName.includes(normQuery) || normQuery.includes(normName)) {
+        score += 50;
+      } else if (normName.includes(normQuery) || normQuery.includes(normName)) {
         const lengthRatio = Math.min(normName.length, normQuery.length) / Math.max(normName.length, normQuery.length);
-        const score = lengthRatio * 50;
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = item;
-        }
+        score += lengthRatio * 30;
+      } else {
+        continue; // No title match at all
+      }
+
+      // Strongly prefer PC/Steam versions over console entries.
+      // items with types:['steam'] are PC games; empty types are usually console.
+      const hasSteamType = item.types?.includes('steam');
+      const hasAnyPcType = item.types?.some((t: string) =>
+        ['steam', 'egs', 'origin', 'gog', 'battlenet', 'uplay'].includes(t)
+      );
+      if (hasSteamType) score += 40;
+      else if (hasAnyPcType) score += 30;
+      else if (item.types?.length > 0) score += 10;
+      // No types = likely console-only, no bonus
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
       }
     }
 

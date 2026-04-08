@@ -12,10 +12,10 @@
   --text-secondary: #858585;
   --text-muted: #5a5a6e;
 
-  /* Accent */
-  --accent-primary: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: rgba(99, 102, 241, 0.12);
+  /* Accent — muted indigo, navy-toned buttons */
+  --accent-primary: #535C91;
+  --accent-hover: #6b74a8;
+  --accent-muted: rgba(83, 92, 145, 0.15);
 
   /* Platform colors */
   --platform-steam: #1b2838;

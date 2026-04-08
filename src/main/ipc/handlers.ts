@@ -211,15 +211,16 @@ export function registerIpcHandlers(win: BrowserWindow): void {
   // ─── App reset ──────────────────────────────────────────────────────────────
 
   ipcMain.handle(Channels.APP_RESET, async () => {
-    const { rmSync, existsSync } = await import('node:fs');
     const path = await import('node:path');
     const appData = process.env['APPDATA'];
     if (!appData) return;
 
     const appDir = path.join(appData, 'game-launcher');
-    if (existsSync(appDir)) {
-      rmSync(appDir, { recursive: true, force: true });
-    }
+
+    // Write a marker file. On next launch, initDb checks for this and
+    // wipes the folder before initializing.
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(path.join(appDir, '.reset-pending'), '', 'utf-8');
 
     app.relaunch();
     app.exit(0);

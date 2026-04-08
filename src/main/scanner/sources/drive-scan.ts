@@ -9,53 +9,49 @@ const GAME_ROOT_DIRS = [
 ];
 
 // Files/patterns that strongly indicate a directory is a game.
+// Files that STRONGLY indicate a game. Must be specific enough to not match
+// dev tools (Unity Hub), overlays (Overwolf), or other non-game software.
 const GAME_INDICATORS = [
-  // Unity engine
-  'UnityPlayer.dll',
-  'UnityCrashHandler64.exe',
-  'UnityCrashHandler32.exe',
+  // Unity engine — GameAssembly.dll is the compiled game code (Unity Hub doesn't have this)
   'GameAssembly.dll',
-  // Unreal Engine
-  'Engine',                   // directory
-  // Steam DRM / SDK (present in cracked games too)
+  // Steam DRM / SDK — only games ship these
   'steam_api.dll',
   'steam_api64.dll',
   'steam_appid.txt',
-  'InstallScript.vdf',
-  // Epic Online Services
+  // Epic Online Services — only games use these
   'eossdk-win64-shipping.dll',
   'eossdk-win32-shipping.dll',
   // GOG Galaxy SDK
   'Galaxy64.dll',
-  'GalaxyCSharp.dll',
   'goggame-*.info',
-  // Anti-cheat (if it has anti-cheat, it's a game)
+  // Anti-cheat (only games have anti-cheat)
   'EasyAntiCheat',            // directory
   'BattlEye',                 // directory
-  // Video / audio codecs common in games
+  // Video codecs only bundled with games
   'bink2w64.dll',
   'bink2w32.dll',
+  // Audio engines bundled with games
   'fmod.dll',
   'fmodex64.dll',
   'wwisec.dll',
-  // Crack / standalone indicators
+  // Crack indicators (only games get cracked)
   'cream_api.ini',
-  'dinput8.dll',              // DLL hook, very common in cracks
   'dxvk.conf',
   // Game redistributable directories
   '_CommonRedist',            // directory
   'CommonRedist',             // directory
-  // VR
-  'actions.json',
+  // VR game SDK
   'openvr_api.dll',
   // FromSoft games
   'regulation.bin',
 ];
 
-// File extensions that suggest game content
+// File extensions that suggest game content.
+// Excluded .pak — Chromium/Electron apps (Discord, LGHub, VS Code) use .pak for locale files.
 const GAME_CONTENT_EXTENSIONS = [
-  '.pak', '.pck', '.wad', '.bsp', '.vpk', '.gcf',
-  '.assets', '.bundle', '.resource',
+  '.pck',                      // Godot engine
+  '.wad', '.bsp', '.vpk',     // Valve / id Tech engines
+  '.gcf',                      // Steam cache format
   '.bdt', '.bhd',             // FromSoft data archives
   '.forge',                   // Ubisoft Anvil engine
   '.arc', '.cpk',             // Capcom / CRI Middleware
@@ -172,6 +168,7 @@ export class DriveScanScanner implements GameScanner {
       exePath: exe.replace(/\\/g, '/'),
       installPath: gameDir.replace(/\\/g, '/'),
       launchUri: null,
+      hasGameIndicators: hasGameIndicator || hasGameContent || subDirHasIndicator,
     };
   }
 

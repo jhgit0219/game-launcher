@@ -7,6 +7,8 @@ export interface ScanResult {
   exePath: string | null;
   installPath: string | null;
   launchUri: string | null;
+  /** True if the scan found game engine indicators (Unity DLLs, .pak files, etc.) */
+  hasGameIndicators?: boolean;
 }
 
 export interface GameScanner {

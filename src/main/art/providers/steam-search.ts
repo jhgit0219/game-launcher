@@ -14,29 +14,36 @@ export async function searchSteamForCover(title: string): Promise<string | null>
 
     const data = await res.json() as {
       total: number;
-      items?: Array<{ id: number; name: string; tiny_image?: string }>;
+      items?: Array<{ id: number; name: string; tiny_image?: string; platforms?: { windows?: boolean } }>;
     };
 
     if (!data.items || data.items.length === 0) return null;
 
     const titleNorm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    // Find the best match — prefer exact, then closest length match
+    // Find the best match — prefer exact title + Windows platform
     let match = data.items[0];
-    let bestScore = 0;
+    let bestScore = -1;
 
     for (const item of data.items) {
+      let score = 0;
       const itemNorm = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
       if (itemNorm === titleNorm) {
-        match = item;
-        break;
-      }
-      if (itemNorm.includes(titleNorm) || titleNorm.includes(itemNorm)) {
+        score += 50;
+      } else if (itemNorm.includes(titleNorm) || titleNorm.includes(itemNorm)) {
         const ratio = Math.min(itemNorm.length, titleNorm.length) / Math.max(itemNorm.length, titleNorm.length);
-        if (ratio > bestScore) {
-          bestScore = ratio;
-          match = item;
-        }
+        score += ratio * 30;
+      } else {
+        continue;
+      }
+
+      // Prefer Windows-available titles (PC covers, not console)
+      if (item.platforms?.windows) score += 20;
+
+      if (score > bestScore) {
+        bestScore = score;
+        match = item;
       }
     }
 

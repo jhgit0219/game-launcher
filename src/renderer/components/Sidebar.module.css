@@ -64,7 +64,7 @@
 .nav {
   display: flex;
   flex-direction: column;
-  padding: var(--space-md) var(--space-sm) 0;
+  padding: var(--space-md) var(--space-md) var(--space-md);
   gap: 2px;
 }
 
@@ -72,7 +72,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: 4px 0;
+  height: 32px;
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
@@ -96,7 +97,10 @@
 .navIcon {
   font-size: 16px;
   width: 24px;
+  height: 24px;
+  line-height: 24px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 /* Filters */
@@ -154,11 +158,40 @@
   color: var(--text-primary);
 }
 
-.filterCheck input[type='checkbox'] {
-  accent-color: var(--accent-primary);
-  width: 14px;
-  height: 14px;
+/* Custom minimal checkbox */
+.filterCheck input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 3px;
+  background: transparent;
   cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.filterCheck input[type="checkbox"]:checked {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.filterCheck input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.5px;
+  width: 4px;
+  height: 7px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.filterCheck input[type="checkbox"]:hover {
+  border-color: var(--accent-hover);
 }
 
 /* Status items */
@@ -171,7 +204,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   border: 1px solid transparent;
 }
 
@@ -272,7 +307,7 @@
 
 .collapseIcon {
   font-size: 8px;
-  width: 14px;
+  width: 12px;
   text-align: center;
   flex-shrink: 0;
   transition: transform var(--transition-fast);
@@ -331,8 +366,7 @@
   background: var(--accent-primary);
   color: #fff;
   border-radius: var(--radius-md);
-  transition:
-    background var(--transition-fast);
+  transition: background var(--transition-fast);
 }
 
 .scanBtn:hover {
@@ -368,13 +402,24 @@
   color: var(--text-secondary);
 }
 
+/* Expand hint chevron — visible only when collapsed */
+.expandHint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 18px;
+  padding: var(--space-xs) 0;
+  opacity: 0.5;
+}
+
 /* Auto-hide sidebar */
 .sidebarAutoHide {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
-  transition: width var(--transition-normal), min-width var(--transition-normal);
+  transition:
+    width var(--transition-normal),
+    min-width var(--transition-normal);
   z-index: var(--z-sidebar);
   box-shadow: 4px 0 16px rgba(0, 8, 25, 0.5);
 }
@@ -384,13 +429,57 @@
   min-width: var(--sidebar-collapsed-width);
 }
 
+/* Collapsed nav: icons centered in 48px strip */
 .navCollapsed {
-  align-items: center;
   padding: var(--space-md) 0 0;
+  align-items: center;
 }
 
 .navItemCollapsed {
   justify-content: center;
-  padding: var(--space-sm);
-  width: var(--sidebar-collapsed-width);
+  padding: 4px 0;
+  width: 32px;
+  gap: 0;
+}
+
+.navLabel {
+  white-space: nowrap;
+  visibility: visible;
+  opacity: 1;
+  transition:
+    visibility 0ms linear 0ms,
+    opacity 150ms ease 150ms;
+}
+
+.navLabelHidden {
+  visibility: hidden;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition:
+    visibility 0ms linear 0ms,
+    opacity 0ms ease 0ms;
+}
+
+/* Sidebar body — appears after 300ms delay (sidebar fully open), instant hide */
+.sidebarBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  visibility: visible;
+  opacity: 1;
+  transition:
+    visibility 0ms linear 0ms,
+    opacity 100ms ease 300ms;
+}
+
+.sidebarBodyHidden {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    visibility 0ms linear 0ms,
+    opacity 0ms ease 0ms;
 }

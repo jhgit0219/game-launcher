@@ -198,50 +198,50 @@ export function Settings() {
       {/* Actions */}
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>Library</h3>
-        <button
-          className={styles.actionBtn}
-          onClick={startScan}
-          disabled={scanning}
-        >
-          {scanning ? 'Scanning...' : 'Scan for Games Now'}
-        </button>
-        <button
-          className={styles.actionBtn}
-          onClick={async () => {
-            await ipc.titles.refresh();
-            startScan();
-          }}
-          disabled={scanning}
-          style={{ marginTop: '8px' }}
-        >
-          Re-resolve Game Titles
-        </button>
-        <p className={styles.sectionDesc} style={{ marginTop: '4px' }}>
+        <div className={styles.actionGroup}>
+          <button
+            className={styles.actionBtn}
+            onClick={startScan}
+            disabled={scanning}
+          >
+            {scanning ? 'Scanning...' : 'Scan for Games Now'}
+          </button>
+          <button
+            className={styles.actionBtn}
+            onClick={async () => {
+              await ipc.titles.refresh();
+              startScan();
+            }}
+            disabled={scanning}
+          >
+            Re-resolve Game Titles
+          </button>
+        </div>
+        <p className={styles.sectionDesc}>
           Clears cached title lookups and rescans. Fixes incorrect game names.
         </p>
 
-        <button
-          className={styles.actionBtn}
-          onClick={() => ipc.art.refetchMissing()}
-          style={{ marginTop: '8px' }}
-        >
-          Fetch Missing Thumbnails
-        </button>
-        <button
-          className={styles.actionBtn}
-          onClick={() => ipc.art.refetchAll()}
-          style={{ marginTop: '8px' }}
-        >
-          Re-fetch All Thumbnails
-        </button>
-        <p className={styles.sectionDesc} style={{ marginTop: '4px' }}>
+        <div className={styles.actionGroup}>
+          <button
+            className={styles.actionBtn}
+            onClick={() => ipc.art.refetchMissing()}
+          >
+            Fetch Missing Thumbnails
+          </button>
+          <button
+            className={styles.actionBtn}
+            onClick={() => ipc.art.refetchAll()}
+          >
+            Re-fetch All Thumbnails
+          </button>
+        </div>
+        <p className={styles.sectionDesc}>
           Re-downloads cover art. Use "All" to fix wrong thumbnails.
         </p>
 
         <button
-          className={styles.actionBtn}
+          className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
           onClick={loadArtFailures}
-          style={{ marginTop: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--bg-active)' }}
         >
           {showFailures ? 'Refresh' : 'Show'} Missing Thumbnails Log
         </button>

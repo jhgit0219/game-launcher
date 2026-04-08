@@ -15,6 +15,7 @@ import {
   findGameByInstallPath,
   findGameByTitleAndPath,
   updateGame,
+  deleteGame,
   listGames,
   type InsertGameInput,
   type Platform,
@@ -151,15 +152,27 @@ export class ScanOrchestrator {
         .filter(Boolean);
       registryScanner.setKnownPaths(knownPaths);
 
-      // Layer 2: validate registry/drive-scan results against the Steam store
-      // search. Trusted platform results are short-circuited as confirmed.
+      // Clear stale heuristic cache entries so they get re-evaluated via API.
+      try {
+        const db = require('../db/index').getDb();
+        db.run("DELETE FROM game_validation WHERE source = 'heuristic'");
+      } catch { /* ignore */ }
+
+      // Layer 2: validate results against SteamGridDB + Steam Store.
       const validationCache = loadValidationCache();
       const validationMap = await validateResults(likelyGames, validationCache);
 
-      // Drop results that the validator identified as definitively not a game.
+      // Filtering logic:
+      // - 'confirmed' (Steam Store match) → always keep
+      // - 'unverified' (SteamGridDB-only match) → keep only if has game indicators
+      //   (SteamGridDB has non-games like Overwolf, LGHub, Discord)
+      // - 'not_a_game' (neither DB found it) → keep only if has game indicators
+      //   (covers obscure games not in any DB but with Unity/.pak files)
       const validated = likelyGames.filter((r) => {
         const entry = validationMap.get(r.title.toLowerCase());
-        return entry?.status !== 'not_a_game';
+        if (entry?.status === 'confirmed') return true;
+        if (r.hasGameIndicators) return true;
+        return false;
       });
 
       // Resolve correct titles using SteamGridDB / Steam Store lookups.
@@ -180,6 +193,10 @@ export class ScanOrchestrator {
         }
         persistDb();
       }
+
+      // Remove games from DB that no longer pass validation (e.g. LGHub, Overwolf
+      // that were added by earlier scans before validation was tightened).
+      this.removeRejectedGames(validationMap, validated);
 
       // Soft-delete games with missing install paths.
       const removed = this.markMissingGames(validated);
@@ -325,6 +342,39 @@ export class ScanOrchestrator {
       launchUri: result.launchUri,
     });
     return { wasAdded: true };
+  }
+
+  /**
+   * Remove games from the DB that were added by previous scans but no longer
+   * pass validation. This handles cases like LGHub/Overwolf that were added
+   * before the validation pipeline was tightened.
+   */
+  /**
+   * Remove games from the DB that the CURRENT scan's validator rejected.
+   * Only trusts fresh API results (steam/steamgriddb), not stale heuristic cache.
+   */
+  private removeRejectedGames(
+    validationMap: Map<string, import('./validator').ValidationResult>,
+    validatedResults: ScanResult[],
+  ): void {
+    const validTitles = new Set(
+      validatedResults.map((r) => r.title.toLowerCase()),
+    );
+
+    const allGames = listGames();
+    const trustedPlatforms = new Set(['steam', 'epic', 'gog', 'origin', 'battlenet']);
+
+    for (const game of allGames) {
+      if (trustedPlatforms.has(game.platform)) continue;
+
+      const key = game.title.toLowerCase();
+      if (validTitles.has(key)) continue;
+
+      const entry = validationMap.get(key);
+      if (entry && entry.status === 'not_a_game') {
+        deleteGame(game.id);
+      }
+    }
   }
 
   /**

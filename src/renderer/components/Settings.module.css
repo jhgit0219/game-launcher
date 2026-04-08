@@ -1,10 +1,10 @@
 .page {
-  padding: var(--space-xl);
+  padding: var(--space-xl) var(--space-xxl);
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
   height: 100%;
-  max-width: 700px;
+  width: 100%;
 }
 
 .loading {
@@ -172,10 +172,17 @@
   color: var(--text-primary);
 }
 
-/* Action button */
+/* Action buttons */
+.actionGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
 .actionBtn {
   padding: var(--space-sm) var(--space-lg);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   background: var(--accent-primary);
   color: #fff;
@@ -190,6 +197,17 @@
 .actionBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.actionBtnSecondary {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-hover);
+}
+
+.actionBtnSecondary:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: #fff;
 }
 
 /* Art failure log */

@@ -16,6 +16,17 @@ const SKIP_DIRS = new Set([
 // Known non-game exe patterns
 const NON_GAME_EXE = /^(unins\d*|setup|install|update|crash|ue4prereq|dxsetup|vcredist|dotnet|bootstrapper|prereq|redist)\.exe$/i;
 
+// Files that strongly indicate a game engine or game content
+const GAME_INDICATOR_FILES = [
+  'gameassembly.dll',
+  'steam_api.dll', 'steam_api64.dll', 'steam_appid.txt',
+  'eossdk-win64-shipping.dll', 'galaxy64.dll',
+  'bink2w64.dll', 'bink2w32.dll',
+  'fmod.dll', 'fmodex64.dll', 'wwisec.dll',
+  'openvr_api.dll', 'cream_api.ini', 'dxvk.conf',
+];
+const GAME_CONTENT_EXTS = ['.pck', '.wad', '.bsp', '.vpk', '.gcf', '.bdt', '.bhd', '.forge', '.arc', '.cpk'];
+
 export class CustomScanner implements GameScanner {
   readonly platform = 'custom' as const;
 
@@ -91,6 +102,15 @@ export class CustomScanner implements GameScanner {
     const exe = this.findBestExe(dir);
     if (!exe) return null;
 
+    // Check for game engine indicators
+    let hasGameIndicators = false;
+    try {
+      const files = require('node:fs').readdirSync(dir) as string[];
+      const filesLower = files.map((f: string) => f.toLowerCase());
+      hasGameIndicators = GAME_INDICATOR_FILES.some(ind => filesLower.includes(ind))
+        || filesLower.some((f: string) => GAME_CONTENT_EXTS.some(ext => f.endsWith(ext)));
+    } catch { /* skip */ }
+
     // Prefer the exe name if it looks like a proper game name, otherwise use folder
     const exeBaseName = path.basename(exe).replace(/\.exe$/i, '');
     const cleanExeName = exeBaseName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -119,6 +139,7 @@ export class CustomScanner implements GameScanner {
       exePath: exe.replace(/\\/g, '/'),
       installPath: dir.replace(/\\/g, '/'),
       launchUri: null,
+      hasGameIndicators,
     };
   }
 

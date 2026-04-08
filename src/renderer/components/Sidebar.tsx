@@ -26,8 +26,6 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
   const {
     view,
     setView,
-    platforms,
-    togglePlatform,
     favoritesOnly,
     setFavoritesOnly,
     recentlyPlayed,
@@ -40,13 +38,13 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
 
   const [quickFiltersCollapsed, setQuickFiltersCollapsed] = useState(false);
   const [statusCollapsed, setStatusCollapsed] = useState(false);
-  const [platformsCollapsed, setPlatformsCollapsed] = useState(false);
 
   const [hovered, setHovered] = useState(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragCounter = useRef(0);
   const collapsed = autoHide && !hovered;
 
-  const handleMouseEnter = useCallback(() => {
+  const expand = useCallback(() => {
     if (collapseTimer.current) {
       clearTimeout(collapseTimer.current);
       collapseTimer.current = null;
@@ -54,10 +52,32 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
     setHovered(true);
   }, []);
 
-  const handleMouseLeave = useCallback(() => {
+  const scheduleCollapse = useCallback(() => {
     collapseTimer.current = setTimeout(() => {
       setHovered(false);
     }, 300);
+  }, []);
+
+  const handleMouseEnter = expand;
+  const handleMouseLeave = scheduleCollapse;
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (dragCounter.current === 1) expand();
+  }, [expand]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      scheduleCollapse();
+    }
+  }, [scheduleCollapse]);
+
+  const handleSidebarDrop = useCallback(() => {
+    dragCounter.current = 0;
   }, []);
 
   useEffect(() => {
@@ -168,6 +188,9 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
       aria-label="Sidebar navigation"
       onMouseEnter={autoHide ? handleMouseEnter : undefined}
       onMouseLeave={autoHide ? handleMouseLeave : undefined}
+      onDragEnter={autoHide ? handleDragEnter : undefined}
+      onDragLeave={autoHide ? handleDragLeave : undefined}
+      onDrop={autoHide ? handleSidebarDrop : undefined}
     >
       {/* Navigation */}
       <nav className={`${styles.nav} ${collapsed ? styles.navCollapsed : ''}`}>
@@ -176,26 +199,27 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
           onClick={() => setView('library')}
         >
           <span className={styles.navIcon}>&#127918;</span>
-          {!collapsed && 'Library'}
+          <span className={`${styles.navLabel} ${collapsed ? styles.navLabelHidden : ''}`}>Library</span>
         </button>
         <button
           className={`${styles.navItem} ${collapsed ? styles.navItemCollapsed : ''} ${view === 'apps' ? styles.navItemActive : ''}`}
           onClick={() => setView('apps')}
         >
           <span className={styles.navIcon}>&#128187;</span>
-          {!collapsed && 'Apps'}
+          <span className={`${styles.navLabel} ${collapsed ? styles.navLabelHidden : ''}`}>Apps</span>
         </button>
         <button
           className={`${styles.navItem} ${collapsed ? styles.navItemCollapsed : ''} ${view === 'settings' ? styles.navItemActive : ''}`}
           onClick={() => setView('settings')}
         >
           <span className={styles.navIcon}>&#9881;</span>
-          {!collapsed && 'Settings'}
+          <span className={`${styles.navLabel} ${collapsed ? styles.navLabelHidden : ''}`}>Settings</span>
         </button>
       </nav>
 
+      <div className={`${styles.sidebarBody} ${collapsed ? styles.sidebarBodyHidden : ''}`}>
       {/* Filters (only in library view) */}
-      {!collapsed && view === 'library' && (
+      {view === 'library' && (
         <div
           ref={filtersRef}
           className={styles.filters}
@@ -253,8 +277,16 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
                     className={`${styles.statusItem} ${active ? styles.statusItemActive : ''}`}
                     onClick={() => onStatusFilter?.(active ? null : status.value)}
                     onDragOver={(e) => e.preventDefault()}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add(styles.statusItemDragOver);
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove(styles.statusItemDragOver);
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      e.currentTarget.classList.remove(styles.statusItemDragOver);
                       const gameId = e.dataTransfer.getData('text/gameId');
                       if (gameId) onGameStatusChange?.(gameId, status.value);
                     }}
@@ -272,30 +304,6 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
             )}
           </div>
 
-          {/* Platform filters — collapsible */}
-          <div className={styles.filterSection}>
-            <button
-              className={styles.filterTitle}
-              onClick={() => setPlatformsCollapsed(v => !v)}
-              aria-expanded={!platformsCollapsed}
-            >
-              <span className={`${styles.collapseIcon} ${platformsCollapsed ? styles.collapseIconCollapsed : ''}`}>&#9660;</span>
-              Platforms
-            </button>
-            {!platformsCollapsed && (
-              ALL_PLATFORMS.map((platform) => (
-                <label key={platform} className={styles.filterCheck}>
-                  <input
-                    type="checkbox"
-                    checked={platforms.includes(platform)}
-                    onChange={() => togglePlatform(platform)}
-                  />
-                  <span>{PLATFORM_LABELS[platform]}</span>
-                </label>
-              ))
-            )}
-          </div>
-
           {activeFilterCount > 0 && (
             <button className={styles.clearBtn} onClick={clearFilters}>
               Clear filters ({activeFilterCount})
@@ -304,8 +312,8 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
         </div>
       )}
 
-      {/* Drag handle — only shown in library view when both panels are present */}
-      {!collapsed && view === 'library' && games.length > 0 && (
+      {/* Drag handle */}
+      {view === 'library' && games.length > 0 && (
         <div
           className={styles.dragHandle}
           role="separator"
@@ -314,8 +322,8 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
         />
       )}
 
-      {/* Game List (only in library view) */}
-      {!collapsed && view === 'library' && games.length > 0 && (
+      {/* Game List */}
+      {view === 'library' && games.length > 0 && (
         <div className={styles.gameList}>
           {/* Library section */}
           {(favoriteGames.length > 0 || recentGames.length > 0) && (
@@ -401,7 +409,7 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
       )}
 
       {/* Scan status */}
-      {!collapsed && <div className={styles.scanSection}>
+      <div className={styles.scanSection}>
         {scanning ? (
           <div className={styles.scanProgress}>
             <div className={styles.scanDot} />
@@ -415,7 +423,8 @@ export function Sidebar({ games = [], onSelectGame, autoHide = false, statusFilt
             Scan for Games
           </button>
         )}
-      </div>}
+      </div>
+      </div>{/* end sidebarBody */}
     </aside>
   );
 }

@@ -1,4 +1,5 @@
 import { getDb, persistDb } from '../db/index';
+import { getSetting } from '../db/settings';
 import type { ScanResult } from './types';
 
 // ---------------------------------------------------------------------------
@@ -13,7 +14,7 @@ export type ValidationStatus =
 export interface ValidationResult {
   title: string;
   status: ValidationStatus;
-  source: 'steam' | 'heuristic' | 'cache';
+  source: 'steam' | 'steamgriddb' | 'heuristic' | 'cache';
 }
 
 /** Platforms whose results are already known-good games — skip remote validation. */
@@ -22,8 +23,8 @@ const TRUSTED_PLATFORMS = new Set<string>(['steam', 'epic', 'gog', 'origin', 'ba
 const STEAM_SEARCH_URL =
   'https://store.steampowered.com/api/storesearch/?term={TERM}&l=english&cc=US';
 
-const REQUEST_DELAY_MS = 300;
-const MAX_VALIDATIONS_PER_SCAN = 30;
+const REQUEST_DELAY_MS = 200;
+const MAX_VALIDATIONS_PER_SCAN = 500;
 
 // ---------------------------------------------------------------------------
 // Database helpers
@@ -87,6 +88,7 @@ function saveValidationEntry(title: string, status: ValidationStatus, source: 's
 // ---------------------------------------------------------------------------
 
 interface SteamSearchApp {
+  id: number;
   name: string;
   [key: string]: unknown;
 }
@@ -137,17 +139,155 @@ function titlesMatch(query: string, candidate: string): boolean {
   return false;
 }
 
-async function validateAgainstSteam(title: string): Promise<ValidationStatus> {
+const SGDB_API_BASE = 'https://www.steamgriddb.com/api/v2';
+
+async function validateAgainstSteamGridDb(title: string, apiKey: string): Promise<ValidationStatus> {
+  if (!apiKey) return 'unverified';
+  try {
+    const url = `${SGDB_API_BASE}/search/autocomplete/${encodeURIComponent(title)}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return 'unverified';
+
+    const data = await res.json() as { success: boolean; data: Array<{ name: string }> };
+    if (!data.success || !data.data?.length) return 'unverified';
+
+    for (const item of data.data.slice(0, 5)) {
+      if (titlesMatch(title, item.name)) return 'confirmed';
+    }
+    return 'unverified';
+  } catch {
+    return 'unverified';
+  }
+}
+
+interface SteamAppGenre {
+  id: string;
+  description: string;
+}
+
+/**
+ * Check Steam appdetails to see if an app is actually a game by its genres.
+ * Game genres have IDs 1-49 (Action, RPG, Strategy, etc.)
+ * Software genres have IDs 50+ (Utilities, Animation & Modeling, etc.)
+ * If ALL genres are 50+, it's software. If ANY genre is under 50, it's a game.
+ */
+async function isGameByGenre(appId: number): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/appdetails?appids=${appId}`,
+      { signal: AbortSignal.timeout(8000) },
+    );
+    if (!res.ok) return true; // Can't check — assume game to avoid false rejections
+
+    const data = await res.json() as Record<string, { success: boolean; data?: { genres?: SteamAppGenre[] } }>;
+    const appData = data[String(appId)];
+    if (!appData?.success || !appData.data?.genres?.length) return true; // No genre info — assume game
+
+    const hasGameGenre = appData.data.genres.some((g) => parseInt(g.id, 10) < 50);
+    return hasGameGenre;
+  } catch {
+    return true; // Network error — assume game
+  }
+}
+
+/**
+ * Read the CompanyName from a Windows exe's version info.
+ * Returns null if it can't be read.
+ */
+function getExeCompany(exePath: string | null): string | null {
+  if (!exePath) return null;
+  try {
+    const { execSync } = require('node:child_process');
+    // Pass path via env variable to avoid PowerShell escaping issues
+    const output = execSync(
+      'powershell.exe -NoProfile -Command "[System.Diagnostics.FileVersionInfo]::GetVersionInfo($env:EXEPATH).CompanyName"',
+      { encoding: 'utf-8', timeout: 5000, windowsHide: true, env: { ...process.env, EXEPATH: exePath } },
+    );
+    return output.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if the Steam game's developer/publisher plausibly matches the local
+ * exe's company name. Used to catch false positives where a non-game shares
+ * the same name as a Steam game (e.g. "Audacity" audio editor vs the game).
+ */
+async function steamDevMatchesExe(appId: number, exePath: string | null): Promise<boolean> {
+  const company = getExeCompany(exePath);
+  if (!company) return true; // Can't check — assume match
+
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/appdetails?appids=${appId}`,
+      { signal: AbortSignal.timeout(8000) },
+    );
+    if (!res.ok) return true;
+
+    const data = await res.json() as Record<string, { success: boolean; data?: { developers?: string[]; publishers?: string[] } }>;
+    const appData = data[String(appId)];
+    if (!appData?.success || !appData.data) return true;
+
+    const devs = [...(appData.data.developers ?? []), ...(appData.data.publishers ?? [])];
+    if (devs.length === 0) return true;
+
+    // Check if the exe company name overlaps with any dev/publisher
+    const companyLower = company.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const dev of devs) {
+      const devLower = dev.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (companyLower.includes(devLower) || devLower.includes(companyLower)) return true;
+    }
+
+    return false; // No match — likely a different app with the same name
+  } catch {
+    return true;
+  }
+}
+
+async function validateAgainstSteam(title: string, exePath?: string | null): Promise<ValidationStatus> {
   const data = await searchSteamStore(title);
   if (!data || data.total === 0 || data.items.length === 0) return 'unverified';
 
   for (const item of data.items.slice(0, 5)) {
-    if (titlesMatch(title, item.name)) return 'confirmed';
+    if (!titlesMatch(title, item.name)) continue;
+
+    if (item.id) {
+      // Check genre — is it actually a game category?
+      const isGame = await isGameByGenre(item.id);
+      if (!isGame) return 'not_a_game';
+
+      // Check developer vs local exe company — catch same-name false positives
+      if (exePath) {
+        const devMatches = await steamDevMatchesExe(item.id, exePath);
+        if (!devMatches) return 'not_a_game';
+      }
+    }
+    return 'confirmed';
   }
 
-  // Results exist but nothing matched closely — leave as unverified rather
-  // than marking as not_a_game, since the store search may simply be noisy.
   return 'unverified';
+}
+
+async function validateTitle(title: string, exePath?: string | null): Promise<{ status: ValidationStatus; source: 'steamgriddb' | 'steam' | 'heuristic' }> {
+  // Check Steam Store first — if Steam confirms it, it's definitely a game
+  const steamStatus = await validateAgainstSteam(title, exePath);
+  if (steamStatus === 'confirmed') return { status: 'confirmed', source: 'steam' };
+
+  // Try SteamGridDB — broader catalog but includes non-games (Overwolf, LGHub, etc.)
+  // So a SteamGridDB-only match is weaker; mark as 'unverified' rather than 'confirmed'.
+  // The orchestrator will keep it only if the folder also has game indicators.
+  const apiKey = getSetting('steamGridDbApiKey');
+  if (apiKey) {
+    const sgdbStatus = await validateAgainstSteamGridDb(title, apiKey);
+    if (sgdbStatus === 'confirmed') return { status: 'unverified', source: 'steamgriddb' };
+  }
+
+  // Neither found it
+  return { status: 'not_a_game', source: 'heuristic' };
 }
 
 // ---------------------------------------------------------------------------
@@ -192,28 +332,26 @@ export async function validateResults(
     needsRemote.push(result);
   }
 
-  // Process uncached registry/drive-scan results against Steam.
+  // Validate uncached results against SteamGridDB (primary) then Steam Store (fallback).
   const toQuery = needsRemote.slice(0, MAX_VALIDATIONS_PER_SCAN);
   const skipped = needsRemote.slice(MAX_VALIDATIONS_PER_SCAN);
 
   for (const result of toQuery) {
     const key = result.title.toLowerCase();
 
-    const status = await validateAgainstSteam(result.title);
+    const { status, source } = await validateTitle(result.title, result.exePath);
     const entry: ValidationResult = {
       title: result.title,
       status,
-      source: 'steam',
+      source,
     };
     output.set(key, entry);
-    saveValidationEntry(result.title, status, 'steam');
+    saveValidationEntry(result.title, status, source as 'steam' | 'heuristic');
 
-    // Respect rate limit between requests.
     await delay(REQUEST_DELAY_MS);
   }
 
-  // Results that exceeded the per-scan cap are marked unverified without
-  // querying the network. They will be re-evaluated on the next scan.
+  // Results exceeding the per-scan cap are re-evaluated next scan.
   for (const result of skipped) {
     const key = result.title.toLowerCase();
     const entry: ValidationResult = {

@@ -51,6 +51,18 @@ export async function initDb(): Promise<void> {
   const dbPath = resolveDbPath();
   _dbPath = dbPath;
 
+  // Check for pending reset — wipe the data folder and start fresh
+  const resetMarker = path.join(path.dirname(dbPath), '.reset-pending');
+  if (fs.existsSync(resetMarker)) {
+    const appDir = path.dirname(dbPath);
+    // Delete all files in the folder
+    for (const file of fs.readdirSync(appDir)) {
+      try {
+        fs.rmSync(path.join(appDir, file), { recursive: true, force: true });
+      } catch { /* skip locked files */ }
+    }
+  }
+
   let db: Database;
   if (fs.existsSync(dbPath)) {
     const buf = fs.readFileSync(dbPath);

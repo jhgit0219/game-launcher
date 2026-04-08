@@ -59,67 +59,18 @@ const SYSTEM_PUBLISHERS = new Set([
   'vmware', 'ibm', 'dell', 'hewlett-packard', 'hp inc.',
 ]);
 
-// Exact known-bad titles (lower-cased).
+// Minimal blocklist — just game store launchers (these match their own platform
+// names which would cause confusion). Everything else is filtered programmatically
+// via Steam Store + game indicator checks.
 const BLOCKED_TITLES = new Set([
-  // Windows / system
-  'windows photos', 'windows media player', 'paint', 'calculator', 'notepad',
-  'windows terminal', 'powershell', 'command prompt', 'task manager',
-  'windows security', 'windows defender', 'device manager',
-  // Browsers
-  'microsoft edge', 'google chrome', 'mozilla firefox', 'opera', 'brave',
-  'vivaldi', 'chromium', 'safari', 'tor browser',
-  // GPU / hardware tools
-  'nvidia geforce experience', 'nvidia app', 'amd adrenalin',
-  'amd software: adrenalin edition', 'intel graphics command center',
-  'intel arc control', 'msi afterburner', 'hwmonitor', 'cpu-z', 'gpu-z',
-  // Dev tools
-  'visual studio', 'visual studio code', 'git', 'node.js', 'python',
-  'java', 'ruby', 'perl', 'php', 'android studio', 'intellij idea',
-  'webstorm', 'pycharm', 'rider', 'clion', 'datagrip', 'goland',
-  'sublime text', 'atom', 'brackets', 'notepad++', 'vim', 'emacs',
-  // Chat / comms
-  'discord', 'slack', 'microsoft teams', 'zoom', 'skype', 'telegram',
-  'whatsapp', 'signal', 'line',
-  // Launchers (not games)
   'steam', 'epic games launcher', 'gog galaxy', 'origin', 'ea app',
-  'battle.net', 'ubisoft connect', 'xbox', 'xbox game bar',
-  'artix game launcher', 'playnite', 'launchbox',
-  // Utilities / tools
-  '7-zip', '7zip', 'winrar', 'winzip', 'vlc media player', 'vlc',
-  'obs studio', 'obs', 'audacity', 'handbrake', 'ffmpeg',
-  'gimp', 'inkscape', 'blender', 'krita',
-  'anydesk', 'teamviewer', 'parsec', 'moonlight',
-  'x360ce', 'ds4windows', 'inputmapper', 'antimicro',
-  'autohotkey', 'auto keyboard by murgee.com', 'auto typer by murgee',
-  'everything', 'wiztree', 'treesize', 'windirstat',
-  'putty', 'winscp', 'filezilla', 'cyberduck',
-  'ccleaner', 'revo uninstaller', 'iobit uninstaller',
-  'bluestacks', 'bluestacks x', 'bluestacks_nxt', 'nox player', 'ldplayer', 'memu',
-  'qbittorrent', 'deluge', 'utorrent', 'bittorrent',
-  'spotify', 'itunes', 'foobar2000', 'musicbee',
-  'acrobat', 'foxit reader', 'sumatra pdf',
-  'libre office', 'libreoffice', 'openoffice',
-  // Adobe (apps, not games)
-  'acrobat elements', 'adobe creative cloud experience',
-  'adobe dreamweaver 2021', 'adobe media encoder 2024',
-  'adobe photoshop 2024', 'adobe premiere pro 2024',
-  'adobenotificationmanager', 'adoberedeemlauncher',
-  // Misc junk that appeared in real scans
-  'acc', 'advguide', 'application', 'artbookost', 'azureocr',
-  'bin64', '64bit', 'app certification kit',
-  // Remote / streaming tools
-  'geforce now', 'xbox game bar',
+  'battle.net', 'ubisoft connect',
 ]);
 
-// Title prefixes that reliably signal a non-game.
+// Title prefixes that reliably signal a non-game — avoids wasting API lookups.
 const SYSTEM_TITLE_PREFIXES = [
-  'microsoft ', 'intel ', 'amd ', 'nvidia ', 'realtek ', 'broadcom ',
-  'windows ', 'adobe ', 'java ', 'python ', 'node.js', 'google ',
-  'mozilla ', 'opera ', 'brave ', 'vivaldi ', 'chromium',
-  'chrome ', // catches "Chrome 146.0.x" etc.
-  'autodesk ', 'vmware ', 'oracle ', 'ibm ', 'dell ', 'hp ',
-  'lenovo ', 'asus ', 'acer ', 'razer ', 'logitech ', 'corsair ',
-  'steelseries ', 'hyperx ',
+  'microsoft ', 'windows ', 'intel ', 'amd ', 'nvidia ', 'realtek ',
+  'adobe ', 'autodesk ', 'vmware ', 'oracle ',
 ];
 
 // Substrings that indicate runtimes, SDKs, or infrastructure.

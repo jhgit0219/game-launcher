@@ -1,17 +1,28 @@
 import { execSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { shell } from 'electron';
 import type { Game } from '../db/games';
 
 interface UninstallResult {
   ok: boolean;
-  method?: 'registry' | 'folder-delete';
+  method?: 'steam' | 'registry' | 'folder-delete';
   error?: string;
 }
 
 /**
+ * Uninstall a Steam game via the steam:// protocol.
+ */
+function uninstallSteamGame(game: Game): UninstallResult {
+  if (!game.platformId) {
+    return { ok: false, error: 'No Steam app ID available.' };
+  }
+  shell.openExternal(`steam://uninstall/${game.platformId}`);
+  return { ok: true, method: 'steam' };
+}
+
+/**
  * Try to find a registry uninstall command for a game.
- * Searches both 32-bit and 64-bit uninstall registry hives.
  */
 function findUninstallCommand(game: Game): string | null {
   const title = game.title;
@@ -23,46 +34,28 @@ function findUninstallCommand(game: Game): string | null {
     'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
   ];
 
-  for (const regPath of regPaths) {
-    try {
-      const output = execSync(
-        `reg query "${regPath}" /s /f "${title}" /d`,
-        { encoding: 'utf-8', timeout: 10000, windowsHide: true },
-      );
+  // Search by title, then by install path
+  const searchTerms = [title];
+  if (installPath) searchTerms.push(installPath);
 
-      // Look for UninstallString in the output
-      const lines = output.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]?.trim() ?? '';
-        if (line.includes('UninstallString')) {
-          const match = line.match(/UninstallString\s+REG_SZ\s+(.+)/i);
-          if (match?.[1]) return match[1].trim();
-        }
-      }
-    } catch {
-      // Key not found or access denied — continue
-    }
-  }
-
-  // Fallback: search by install path
-  if (installPath) {
+  for (const term of searchTerms) {
     for (const regPath of regPaths) {
       try {
         const output = execSync(
-          `reg query "${regPath}" /s /f "${installPath}" /d`,
+          `reg query "${regPath}" /s /f "${term}" /d`,
           { encoding: 'utf-8', timeout: 10000, windowsHide: true },
         );
 
         const lines = output.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i]?.trim() ?? '';
-          if (line.includes('UninstallString')) {
-            const match = line.match(/UninstallString\s+REG_SZ\s+(.+)/i);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.includes('UninstallString')) {
+            const match = trimmed.match(/UninstallString\s+REG_SZ\s+(.+)/i);
             if (match?.[1]) return match[1].trim();
           }
         }
       } catch {
-        // continue
+        // Key not found or access denied
       }
     }
   }
@@ -71,15 +64,24 @@ function findUninstallCommand(game: Game): string | null {
 }
 
 export async function uninstallGame(game: Game): Promise<UninstallResult> {
-  // Try registry uninstaller first
+  // Platform-specific uninstall
+  if (game.platform === 'steam' && game.platformId) {
+    return uninstallSteamGame(game);
+  }
+
+  // Try registry uninstaller
   const uninstallCmd = findUninstallCommand(game);
 
   if (uninstallCmd) {
     try {
-      // Run the uninstaller — use cmd /c start for UAC elevation
-      const child = spawn('cmd', ['/c', 'start', '', ...uninstallCmd.split(' ')], {
+      // Pass the entire command as a single string to cmd /c
+      // This handles paths with spaces like:
+      //   "C:\Program Files\Game\uninstall.exe" --silent
+      //   MsiExec.exe /X{GUID}
+      const child = spawn('cmd', ['/c', uninstallCmd], {
         detached: true,
         stdio: 'ignore',
+        shell: true,
         windowsHide: false,
       });
       child.unref();
@@ -89,7 +91,7 @@ export async function uninstallGame(game: Game): Promise<UninstallResult> {
     }
   }
 
-  // Fallback: delete the game folder if it exists
+  // Fallback: delete the game folder
   const installPath = game.installPath?.replace(/\//g, '\\');
   if (installPath && existsSync(installPath)) {
     try {
