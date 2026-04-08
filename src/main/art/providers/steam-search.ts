@@ -17,15 +17,33 @@ export async function searchSteamForCover(title: string): Promise<string | null>
       items?: Array<{ id: number; name: string; tiny_image?: string; platforms?: { windows?: boolean } }>;
     };
 
-    if (!data.items || data.items.length === 0) return null;
+    let items = data.items ?? [];
+
+    // Fallback: retry with the longest word if no results
+    if (items.length === 0) {
+      const words = title.split(/\s+/).filter(w => w.length >= 4);
+      const longest = words.sort((a, b) => b.length - a.length)[0];
+      if (longest && longest.toLowerCase() !== title.toLowerCase()) {
+        const retryRes = await fetch(
+          `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(longest)}&l=english&cc=US`,
+          { signal: AbortSignal.timeout(8000) },
+        );
+        if (retryRes.ok) {
+          const retryData = await retryRes.json() as typeof data;
+          items = retryData.items ?? [];
+        }
+      }
+    }
+
+    if (items.length === 0) return null;
 
     const titleNorm = title.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     // Find the best match — prefer exact title + Windows platform
-    let match = data.items[0];
+    let match = items[0];
     let bestScore = -1;
 
-    for (const item of data.items) {
+    for (const item of items) {
       let score = 0;
       const itemNorm = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 

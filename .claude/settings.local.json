@@ -149,7 +149,21 @@
       "Bash(mkdir -p /d/tmp/etest)",
       "Bash(\"node_modules/electron/dist/electron.exe\" /d/tmp/etest)",
       "Bash(rm /d/tmp/etest.js)",
-      "Bash(\"node_modules/electron/dist/electron.exe\" /d/tmp/etest/)"
+      "Bash(\"node_modules/electron/dist/electron.exe\" /d/tmp/etest/)",
+      "Bash(curl -s \"https://store.steampowered.com/api/storesearch/?term=TES%20Skyrim&l=english&cc=US\")",
+      "Bash(curl -s \"https://www.steamgriddb.com/api/v2/search/autocomplete/TES%20Skyrim\" -H \"Authorization: Bearer 3850256dda54cca5584bb1107ba48fbf\")",
+      "Bash(curl -s \"https://www.steamgriddb.com/api/v2/search/autocomplete/Skyrim\" -H \"Authorization: Bearer 3850256dda54cca5584bb1107ba48fbf\")",
+      "Bash(curl -s \"https://www.steamgriddb.com/api/v2/search/autocomplete/The%20Elder%20Scrolls%20Skyrim\" -H \"Authorization: Bearer 3850256dda54cca5584bb1107ba48fbf\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('main:', d.get\\('main'\\)\\); print\\('exports:', d.get\\('exports','none'\\)\\)\")",
+      "Bash(mv node_modules/electron/index.js node_modules/electron/electron-path.js)",
+      "Bash(node_modules/electron/dist/electron.exe test-e.js)",
+      "Bash(rm test-e.js)",
+      "Bash(cp node_modules/electron/get-path.js node_modules/electron/index.js)",
+      "Bash(node -e \"const cp=require\\('child_process'\\); const e=require\\('./node_modules/electron/get-path.js'\\); console.log\\('path:', e\\); cp.spawn\\(e, ['test-e.js'], {stdio:'inherit'}\\).on\\('close', c=>process.exit\\(c\\)\\);\")",
+      "WebSearch",
+      "Bash(npm view:*)",
+      "Bash(python3 -c \"import sys,json; v=json.load\\(sys.stdin\\); print\\([x for x in v if x.startswith\\('41.'\\)][-5:]\\)\")",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

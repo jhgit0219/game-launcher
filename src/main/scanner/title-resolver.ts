@@ -72,21 +72,37 @@ function similarity(a: string, b: string): number {
  */
 async function searchSteamGridDb(query: string, apiKey: string): Promise<string | null> {
   try {
+    const headers = { Authorization: `Bearer ${apiKey}` };
     const url = `${SGDB_API_BASE}/search/autocomplete/${encodeURIComponent(query)}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(8000),
-    });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
 
     const data = await res.json() as { success: boolean; data: Array<{ id: number; name: string }> };
-    if (!data.success || !data.data?.length) return null;
+    let results = data.success ? data.data ?? [] : [];
+
+    // Fallback: retry with longest word if no results (handles "TES Skyrim" → "Skyrim")
+    if (results.length === 0) {
+      const words = query.split(/\s+/).filter(w => w.length >= 4);
+      const longest = words.sort((a, b) => b.length - a.length)[0];
+      if (longest && longest.toLowerCase() !== query.toLowerCase()) {
+        const retryRes = await fetch(
+          `${SGDB_API_BASE}/search/autocomplete/${encodeURIComponent(longest)}`,
+          { headers, signal: AbortSignal.timeout(8000) },
+        );
+        if (retryRes.ok) {
+          const retryData = await retryRes.json() as typeof data;
+          if (retryData.success) results = retryData.data ?? [];
+        }
+      }
+    }
+
+    if (results.length === 0) return null;
 
     // Find the best match
     let bestMatch: string | null = null;
     let bestScore = 0;
 
-    for (const item of data.data.slice(0, 5)) {
+    for (const item of results.slice(0, 5)) {
       const score = similarity(query, item.name);
       if (score > bestScore) {
         bestScore = score;
@@ -98,7 +114,7 @@ async function searchSteamGridDb(query: string, apiKey: string): Promise<string 
     if (bestMatch && bestScore >= 0.5) return bestMatch;
 
     // If the first result's normalized form contains our query, accept it
-    const first = data.data[0];
+    const first = results[0];
     if (first && normalise(first.name).includes(normalise(query))) {
       return first.name;
     }

@@ -32,22 +32,41 @@ export async function fetchSteamGridDbCover(
   const headers = { Authorization: `Bearer ${apiKey}` };
 
   // Step 1: Search for the game by name, finding the best title match.
+  // If no results, retry with the longest word (handles abbreviations like "TES Skyrim").
   let gameId: number | null = null;
   try {
+    let searchData: SteamGridSearchResult[] = [];
+
     const searchUrl = `${API_BASE}/search/autocomplete/${encodeURIComponent(title)}`;
     const searchRes = await fetchWithTimeout(searchUrl, { headers });
-    if (!searchRes.ok) return null;
+    if (searchRes.ok) {
+      const searchJson = (await searchRes.json()) as SteamGridResponse<SteamGridSearchResult>;
+      if (searchJson.success) searchData = searchJson.data;
+    }
 
-    const searchJson = (await searchRes.json()) as SteamGridResponse<SteamGridSearchResult>;
-    if (!searchJson.success || !searchJson.data.length) return null;
+    // Fallback: retry with the longest word from the title
+    if (searchData.length === 0) {
+      const words = title.split(/\s+/).filter(w => w.length >= 4);
+      const longest = words.sort((a, b) => b.length - a.length)[0];
+      if (longest && longest.toLowerCase() !== title.toLowerCase()) {
+        const retryUrl = `${API_BASE}/search/autocomplete/${encodeURIComponent(longest)}`;
+        const retryRes = await fetchWithTimeout(retryUrl, { headers });
+        if (retryRes.ok) {
+          const retryJson = (await retryRes.json()) as SteamGridResponse<SteamGridSearchResult>;
+          if (retryJson.success) searchData = retryJson.data;
+        }
+      }
+    }
+
+    if (searchData.length === 0) return null;
 
     // Find the best matching title rather than blindly taking the first result.
     // This prevents "Bejeweled 2" from getting "Bejeweled" art.
     const normQuery = title.toLowerCase().replace(/[^a-z0-9]/g, '');
-    let bestMatch = searchJson.data[0]!;
+    let bestMatch = searchData[0]!;
     let bestScore = -1;
 
-    for (const item of searchJson.data) {
+    for (const item of searchData) {
       let score = 0;
       const normName = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
